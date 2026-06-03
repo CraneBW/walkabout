@@ -5,6 +5,7 @@ import inspect
 import sys
 import json
 import traceback
+from __future__ import annotations
 try:
     import torch
 except ImportError:
@@ -25,8 +26,6 @@ from typing import Any
 class StackElement:
     path: str
     """The path to the file containing the code."""
-from __future__ import annotations
-
 
     line_number: int
     """The line number of the code."""

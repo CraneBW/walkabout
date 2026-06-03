@@ -1,10 +1,9 @@
 """Base class for Walkabout plugins."""
+from __future__ import annotations
 from abc import ABC
 
 class WalkaboutPlugin(ABC):
     """Plugins can hook into the execution pipeline and add UI features."""
-from __future__ import annotations
-
     name: str = "unnamed"
     version: str = "0.1.0"
 
