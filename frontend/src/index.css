@@ -1,0 +1,405 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #1e1e1e;
+  color: #d4d4d4;
+}
+
+/* === Editor Page Layout === */
+.editor-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 40px;
+  background: #252526;
+  border-bottom: 1px solid #3c3c3c;
+  flex-shrink: 0;
+}
+
+.toolbar .logo {
+  font-weight: 700;
+  font-size: 16px;
+  color: #60c0ff;
+}
+
+.toolbar .file-path {
+  color: #888;
+  font-size: 12px;
+  margin-right: 12px;
+}
+
+.toolbar button {
+  background: #0e639c;
+  color: #fff;
+  border: none;
+  padding: 4px 12px;
+  margin-left: 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.toolbar button:hover { background: #1177bb; }
+.toolbar button:disabled { opacity: 0.5; cursor: default; }
+.toolbar button.run-btn { background: #16825d; }
+.toolbar button.run-btn:hover { background: #1a9e6e; }
+
+.main-area {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* === File Browser === */
+.file-browser {
+  width: 220px;
+  background: #252526;
+  border-right: 1px solid #3c3c3c;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.file-browser-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #3c3c3c;
+}
+
+.file-browser-header h3 {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #888;
+}
+
+.new-btn {
+  background: none;
+  border: 1px solid #555;
+  color: #ccc;
+  width: 24px; height: 24px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+.new-btn:hover { background: #3c3c3c; }
+
+.new-file-input {
+  display: flex;
+  padding: 6px;
+  gap: 4px;
+}
+.new-file-input input {
+  flex: 1;
+  background: #3c3c3c;
+  border: 1px solid #555;
+  color: #ccc;
+  padding: 3px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+.new-file-input button {
+  background: #0e639c;
+  border: none;
+  color: #fff;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.file-list {
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.file-list li {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  gap: 6px;
+}
+.file-list li:hover { background: #2a2d2e; }
+.file-list li.selected { background: #37373d; }
+
+.file-icon { font-size: 14px; }
+.file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.delete-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 4px;
+}
+.file-list li:hover .delete-btn { display: block; }
+.delete-btn:hover { color: #f44747; }
+
+/* === Editor Area === */
+.editor-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.editor-container {
+  flex: 1;
+}
+
+.welcome {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+}
+
+.error-banner {
+  background: #5a1d1d;
+  color: #f44747;
+  padding: 6px 12px;
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+}
+.error-banner button {
+  background: none;
+  border: none;
+  color: #f44747;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.exec-error {
+  background: #5a1d1d;
+  color: #f48771;
+  padding: 12px;
+  font-size: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.exec-error pre {
+  white-space: pre-wrap;
+  margin-top: 6px;
+}
+
+.loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+}
+
+/* === Viewer Page === */
+.viewer-page {
+  height: 100vh;
+  overflow-y: auto;
+  background: #1e1e1e;
+}
+
+.viewer-header {
+  padding: 8px 20px;
+  background: #252526;
+  border-bottom: 1px solid #3c3c3c;
+}
+
+.viewer-header a {
+  color: #60c0ff;
+  text-decoration: none;
+  font-size: 13px;
+}
+.viewer-header a:hover { text-decoration: underline; }
+
+/* === Viewer (TraceViewer) styles === */
+.header {
+  padding: 8px 20px;
+  background: #252526;
+  border-bottom: 1px solid #3c3c3c;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.header-title { display: flex; align-items: center; gap: 12px; }
+
+.icon-buttons { display: flex; gap: 4px; }
+.icon-buttons button {
+  background: none;
+  border: 1px solid #555;
+  color: #ccc;
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.icon-buttons button:hover { background: #3c3c3c; }
+
+.line {
+  display: flex;
+  font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  min-height: 22px;
+}
+
+.line-number {
+  width: 48px;
+  text-align: right;
+  padding-right: 12px;
+  color: #555;
+  flex-shrink: 0;
+  cursor: pointer;
+  user-select: none;
+}
+.line-number:hover { color: #ccc; }
+
+.code-container { white-space: pre-wrap; word-break: break-all; }
+
+.current-line { background: #2a2d2e; }
+.current-line .line-number { color: #60c0ff; }
+
+.cloaked { opacity: 0.3; }
+
+.renderings {
+  padding: 4px 0 4px 60px;
+  border-left: 2px solid #444;
+  margin-left: 24px;
+}
+
+.markdown { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+.markdown h1, .markdown h2, .markdown h3 { color: #e0e0e0; margin: 8px 0 4px; }
+.markdown p { margin: 4px 0; }
+.markdown strong { color: #ffcb6b; }
+
+img { max-width: 100%; }
+
+.env-panel {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #252526;
+  border: 1px solid #555;
+  border-radius: 6px;
+  padding: 12px;
+  max-width: 400px;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  cursor: move;
+  font-size: 12px;
+}
+.env-panel pre {
+  font-family: 'Fira Code', monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.link-container { position: relative; }
+.link-hover-panel {
+  display: none;
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  background: #333;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 8px;
+  min-width: 200px;
+  z-index: 50;
+  font-size: 12px;
+}
+.link-container:hover .link-hover-panel { display: block; }
+.external-link { color: #60c0ff; text-decoration: none; }
+.external-link:hover { text-decoration: underline; }
+
+.header a { color: #60c0ff; text-decoration: none; }
+.header a:hover { text-decoration: underline; }
+
+/* === Tab buttons === */
+.toolbar button.tab-active {
+  background: #37373d;
+  border-bottom: 2px solid #60c0ff;
+}
+.toolbar-sep {
+  display: inline-block;
+  width: 1px;
+  height: 20px;
+  background: #555;
+  margin: 0 6px;
+  vertical-align: middle;
+}
+.toolbar .pkg-btn {
+  background: none;
+  border: 1px solid #555;
+  font-size: 16px;
+}
+
+/* === Install bar === */
+.install-bar {
+  display: flex;
+  padding: 6px 12px;
+  background: #2d2d30;
+  border-bottom: 1px solid #3c3c3c;
+  gap: 6px;
+}
+.install-bar input {
+  flex: 1;
+  background: #3c3c3c;
+  border: 1px solid #555;
+  color: #ccc;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+.install-bar button {
+  padding: 4px 10px;
+  border-radius: 3px;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  background: #0e639c;
+  color: #fff;
+}
+.install-bar button:hover { background: #1177bb; }
+
+/* === Embedded viewer === */
+.viewer-embed {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.welcome-hint {
+  margin-top: 16px;
+  font-size: 12px;
+  color: #666;
+}
