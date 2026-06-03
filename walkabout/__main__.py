@@ -23,7 +23,7 @@ def main():
         print(f"   Plugins: {', '.join(p.name for p in pm.plugins)}")
 
     print(f"   Workspace: {NOTES_DIR}")
-    print(f"   Settings:  {settings.get('_file', '~/.walkabout/settings.json')}")
+    print(f"   Settings:  ~/.walkabout/settings.json")
     print()
 
     # Check frontend
@@ -38,7 +38,23 @@ def main():
     app = create_app()
     url = f"http://localhost:{port}"
 
-    # 1st choice: pywebview (native window, no external browser)
+    # Detect headless / WSL — skip GUI, use server-only mode
+    has_display = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+    is_wsl = "microsoft" in os.uname().release.lower() or bool(os.environ.get("WSL_DISTRO_NAME", ""))
+
+    if is_wsl:
+        print(f"   WSL2 detected — server starting at:")
+        print(f"   →  {url}")
+        print(f"   Open this URL in your Windows browser. (WSL2 auto-forwards localhost)\n")
+        uvicorn.run(app, host="127.0.0.1", port=port, log_level="info")
+        return
+
+    if not has_display:
+        print(f"   Headless mode — server starting at {url}\n")
+        uvicorn.run(app, host="127.0.0.1", port=port, log_level="info")
+        return
+
+    # Has display — try native window
     try:
         from walkabout.webview import open_window
 
@@ -48,16 +64,16 @@ def main():
         server_thread = threading.Thread(target=serve, daemon=True)
         server_thread.start()
         time.sleep(1.5)
-        print(f"   Launching native window...")
+        print("   Launching native window...")
         open_window(url)
         return
     except ImportError:
         pass
     except Exception as e:
-        print(f"   pywebview failed ({e}), trying alternatives...")
+        print(f"   pywebview failed ({e}), falling back to browser...")
 
-    # 2nd choice: system browser with localhost
-    print(f"   Opening {url} in browser...")
+    # Fallback: system browser
+    print(f"   Opening {url} ...")
     import webbrowser
     webbrowser.open(url)
     uvicorn.run(app, host="127.0.0.1", port=port, log_level="info")
