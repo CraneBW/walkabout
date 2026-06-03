@@ -11,24 +11,30 @@ from typing import Any, Optional
 def generate_html(
     trace: dict[str, Any],
     title: str = "Walkthrough",
+    strip_source: bool = True,
 ) -> str:
     """Generate a self-contained HTML file from a trace dict.
 
-    The returned HTML includes every CSS and JS dependency inline or
-    loaded from CDN so it works both online and offline (for basic
-    rendering; MathJax requires a network fetch on first load).
+    When *strip_source* is True (default), full file contents are removed from
+    the embedded trace — the viewer falls back to showing only each step's code
+    line(s) from the call stack.
     """
+    if strip_source:
+        trace = dict(trace)
+        trace["files"] = {}
     trace_json = json.dumps(trace, ensure_ascii=False, indent=2)
     files: dict[str, str] = trace.get("files", {})
     file_entries = "".join(
         f'<option value="{k}">{k}</option>' for k in files
     )
+    file_style = "display:none" if not files else ""
 
     title_escaped = _escape_html(title)
     html = _TEMPLATE
     html = html.replace("__TITLE__", title_escaped)
     html = html.replace("__TRACE_JSON__", trace_json)
     html = html.replace("__FILE_ENTRIES__", file_entries)
+    html = html.replace("__FILE_SELECT_STYLE__", file_style)
     return html
 
 
@@ -132,10 +138,11 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
   <div class="header">
     <div class="header-title">
       <strong>__TITLE__</strong>
-      <select id="file-select">__FILE_ENTRIES__</select>
+      <span id="file-select-wrap" style="__FILE_SELECT_STYLE__">
+        <select id="file-select">__FILE_ENTRIES__</select>
+      </span>
     </div>
     <div class="icon-buttons">
-      <button id="raw-btn" title="Toggle raw mode">R</button>
       <button id="prev-btn" title="Previous step (&#x2190;)">&#x25C0;</button>
       <span class="step-counter"><span id="step-num">0</span> / <span id="step-total">0</span></span>
       <button id="next-btn" title="Next step (&#x2192;)">&#x25B6;</button>
@@ -163,8 +170,11 @@ var trace = JSON.parse(document.getElementById('trace-data').textContent);
 var files = trace.files || {};
 var steps = trace.steps || [];
 var currentIndex = 0;
-var rawMode = false;
 var currentPath = Object.keys(files)[0] || '';
+/* When source files were stripped, grab path from first step */
+if (!currentPath && steps.length > 0 && steps[0].stack && steps[0].stack.length > 0) {
+    currentPath = steps[0].stack[steps[0].stack.length - 1].path || '';
+}
 
 document.getElementById('step-total').textContent = steps.length;
 
@@ -280,8 +290,20 @@ function renderLines() {
     var panel = document.getElementById('lines-panel');
     var path = currentPath;
     var source = files[path] || '';
-    var allLines = source.split('\\n');
     var currentLine = getStepLine(currentIndex);
+
+    /* When source files are not available (stripped for privacy), show step stack only */
+    if (!source) {
+        renderStepOnly(panel);
+        renderEnv();
+        document.getElementById('step-num').textContent = currentIndex;
+        if (window.MathJax && MathJax.typesetPromise) {
+            MathJax.typesetPromise([panel]).catch(function () {});
+        }
+        return;
+    }
+
+    var allLines = source.split('\\n');
 
     /* Syntax highlight */
     var highlighted = '';
@@ -328,6 +350,33 @@ function renderLines() {
     if (window.MathJax && MathJax.typesetPromise) {
         MathJax.typesetPromise([panel]).catch(function () {});
     }
+}
+
+/* Render current step stack frames when full file source is not available */
+function renderStepOnly(panel) {
+    var step = steps[currentIndex];
+    if (!step || !step.stack || step.stack.length === 0) {
+        panel.innerHTML = '<div class="env-empty" style="padding:20px;text-align:center">No source code available</div>';
+        return;
+    }
+    var html = '';
+    for (var s = 0; s < step.stack.length; s++) {
+        var frame = step.stack[s];
+        var cls = (s === step.stack.length - 1) ? 'line current-line' : 'line';
+        html += '<div class="' + cls + '">';
+        html += '<span class="line-number" data-path="' + escapeHtml(frame.path) + '" data-line="' + frame.line_number + '">' + frame.line_number + '</span>';
+        html += '<span class="code-container">' + escapeHtml(frame.code) + '</span>';
+        html += '</div>';
+    }
+    var renderings = step.renderings || [];
+    if (renderings.length > 0) {
+        html += '<div class="renderings">';
+        for (var r = 0; r < renderings.length; r++) {
+            html += renderRendering(renderings[r]);
+        }
+        html += '</div>';
+    }
+    panel.innerHTML = html;
 }
 
 function renderEnv() {
@@ -399,19 +448,16 @@ document.addEventListener('click', function (e) {
         if (currentIndex < steps.length - 1) { currentIndex++; renderLines(); updateButtons(); }
         return;
     }
-    if (t.id === 'raw-btn' || t.parentElement.id === 'raw-btn') {
-        rawMode = !rawMode;
-        t.style.borderColor = rawMode ? '#60c0ff' : '';
-        renderLines();
-        return;
-    }
 });
 
 /* File selector switch */
-document.getElementById('file-select').addEventListener('change', function () {
-    currentPath = this.value;
-    renderLines();
-});
+var fileSelect = document.getElementById('file-select');
+if (fileSelect) {
+    fileSelect.addEventListener('change', function () {
+        currentPath = this.value;
+        renderLines();
+    });
+}
 
 /* Keyboard navigation */
 document.addEventListener('keydown', function (e) {

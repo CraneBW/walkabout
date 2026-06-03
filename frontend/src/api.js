@@ -39,6 +39,13 @@ export async function installPackages(packages) {
 }
 
 export async function exportNote(path) {
-  // Browser-native download: navigate to GET endpoint
-  window.location.href = `/api/export?path=${encodeURIComponent(path)}`;
+  // Trigger download via hidden anchor — keeps user on SPA and allows toast to show
+  const url = `/api/export?path=${encodeURIComponent(path)}`;
+  const name = path.split('/').pop().replace(/\.py$/i, '.html');
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
