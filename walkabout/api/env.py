@@ -1,7 +1,7 @@
 """Environment management — uv-based Python package installation."""
-from __future__ import annotations
 import subprocess, os, shutil, json
 from pathlib import Path
+from typing import Optional, List
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from ..config import NOTES_DIR
@@ -10,20 +10,20 @@ router = APIRouter(prefix="/api/env", tags=["env"])
 
 
 class InstallRequest(BaseModel):
-    packages: list[str]
+    packages: List[str]
 
 
 class EnvInfo(BaseModel):
     python: str
-    venv: str | None
-    packages: list[str]
+    venv: Optional[str]
+    packages: List[str]
 
 
-def _find_uv() -> str | None:
+def _find_uv() -> Optional[str]:
     return shutil.which("uv")
 
 
-def _get_venv_python() -> str | None:
+def _get_venv_python() -> Optional[str]:
     for base in [NOTES_DIR, Path.home() / ".walkabout"]:
         venv = base / ".venv" / "bin" / "python3"
         if venv.exists():

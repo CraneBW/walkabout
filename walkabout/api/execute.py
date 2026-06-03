@@ -1,11 +1,11 @@
 """Execution API — run walkthrough scripts and generate trace JSON."""
-from __future__ import annotations
 import json
 import subprocess
 import sys
 import uuid
 import os
 from pathlib import Path
+from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from ..config import NOTES_DIR, TRACES_DIR, FILES_DIR, ensure_dirs, get_python_path
@@ -15,14 +15,14 @@ router = APIRouter(prefix="/api/execute", tags=["execute"])
 
 class ExecuteRequest(BaseModel):
     path: str
-    content: str | None = None  # Optional: auto-save before execute
+    content: Optional[str] = None  # Optional: auto-save before execute
 
 class ExecuteResponse(BaseModel):
     run_id: str
     status: str  # "ok" | "error"
-    trace_url: str | None = None
-    steps: int | None = None
-    error: str | None = None
+    trace_url: Optional[str] = None
+    steps: Optional[int] = None
+    error: Optional[str] = None
 
 
 RUNNER = Path(__file__).parent.parent / "runner.py"
