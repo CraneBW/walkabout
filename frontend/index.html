@@ -10,10 +10,39 @@
           inlineMath: [['$', '$'], ['\\(', '\\)']],
           displayMath: [['$$', '$$'], ['\\[', '\\]']]
         },
-        svg: { fontCache: 'global' }
+        svg: { fontCache: 'global' },
+        startup: {
+          pageReady: function() {
+            // After MathJax is loaded, set up MutationObserver to catch
+            // dynamically rendered content (TraceViewer steps, etc.)
+            var root = document.getElementById('root');
+            if (root) {
+              var observer = new MutationObserver(function() {
+                if (MathJax.typesetPromise) {
+                  MathJax.typesetPromise().catch(function(){});
+                }
+              });
+              observer.observe(root, { childList: true, subtree: true });
+            }
+            return MathJax.startup.defaultPageReady();
+          }
+        }
       };
     </script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+    <script>
+      // Polling fallback: retry typeset every 1s until MathJax is ready
+      (function() {
+        var retries = 0;
+        var timer = setInterval(function() {
+          if (window.MathJax && window.MathJax.typesetPromise) {
+            clearInterval(timer);
+            MathJax.typesetPromise().catch(function(){});
+          }
+          if (++retries > 30) clearInterval(timer);
+        }, 1000);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
