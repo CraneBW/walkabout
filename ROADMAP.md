@@ -56,8 +56,14 @@
 ### B8. pywebview 在 WSL2 中不可用
 - **文件**: `walkabout/webview.py`, `walkabout/__main__.py`
 - **现象**: WSL2 无原生 GUI（无 X Server 时），pywebview 导入成功但 `webview.start()` 崩溃。
-- **当前方案**: try/except 回退到系统浏览器。
+- **当前方案**: try/except 回退到系统浏览器。`open_window()` 不再内嵌 uvicorn 服务，避免与 `__main__.py` 的服务器线程冲突。
 - **修复方向**: 检测 `$DISPLAY` 环境变量，在无 GUI 时打印明确提示并自动降级到浏览器模式，同时提供 `--no-gui` CLI flag。
+
+### B9. 列表推导式中 @inspect 变量定位失败
+- **文件**: `walkabout/core/execute.py`
+- **现象**: 对列表推导式的结果变量使用 `@inspect`（如 `squares = [x*x for x in range(5)]  # @inspect squares`），local_trace_func 被列表推导的内部作用域触发多次，每次 `squares` 在 locals 中不可见，产生多个 `WARNING: variable squares not found in locals` 噪音。
+- **根因**: 列表推导式创建了隐式函数作用域，`local_trace_func` 在该作用域内无法访问外层函数的 `squares` 变量，直到推导完成后才可见。
+- **修复方向**: 检测列表/集合/字典推导式的代码行，在推导式作用域内跳过变量捕获，直到推导完成后再捕获一次。
 
 ---
 

@@ -5,17 +5,24 @@
 ### Fixed
 
 - **端口冲突导致 `[Errno 98] address already in use`**
-  - `webview.py`: 移除 `open_window()` 中内嵌的 uvicorn 服务启动逻辑（#6ae2f2c），避免与 `__main__.py` 的服务器线程争夺端口。
-  - `__main__.py`: 预创建 TCP socket 并设置 `SO_REUSEADDR` 选项（#8c4f3b1），消除 TIME-WAIT 状态导致的端口绑定失败。重构服务器启动流程，统一由 `_run_server()` 管理，消除重复的 `uvicorn.run()` 调用。
+  - `webview.py`: 移除 `open_window()` 中内嵌的 uvicorn 服务启动逻辑（#2a0f28e），避免与 `__main__.py` 的服务器线程争夺端口。
+  - `__main__.py`: 预创建 TCP socket 并设置 `SO_REUSEADDR` 选项（#168f965），消除 TIME-WAIT 状态导致的端口绑定失败。重构服务器启动流程，统一由 `_run_server()` 管理，消除重复的 `uvicorn.run()` 调用。
   - 影响文件: `walkabout/__main__.py`, `walkabout/webview.py`
+
+- **runner.py 路径解析错误**
+  - `core_dir` 错误地指向项目根目录而非 `walkabout/core/`（#342ea13），导致 `execute_util`/`file_util` 导入失败。
+  - 修复: 使用 `os.path.join(runner_dir, 'core')` 精确指向引擎目录。
+
+- **execute.py `__future__` import 位置错误**
+  - `from __future__ import annotations` 放在文件中部而非顶部（#95cfdaa），在 Python 3.9 中引发 `SyntaxError`。
+  - 修复: 移至文件第一行。
 
 - **Conda 环境 libstdc++/libgcc_s 版本过旧**
   - 将 `libstdc++.so.6` 从 6.0.29 更新至系统版本 6.0.35，解决 `GLIBCXX_3.4.30 not found` 导致 GTK 原生窗口加载失败的问题。
   - 同步更新 `libgcc_s.so.1` 以匹配系统 GCC 版本，消除 `GCC_12.0.0 not found` 错误。
-  - 修复命令:
-    ```bash
-    conda install -n deeplearning -c conda-forge libstdcxx-ng --update-deps
-    # 或手动替换:
-    cp /usr/lib/libstdc++.so.6 ~/.conda/envs/deeplearning/lib/libstdc++.so.6.0.35
-    cp /usr/lib/libgcc_s.so.1 ~/.conda/envs/deeplearning/lib/libgcc_s.so.1
-    ```
+
+### Added
+
+- **功能演示脚本** (`walkabout/examples/demo_walkthrough.py`)
+  - 涵盖: Markdown 渲染、变量追踪 (`@inspect`)、字符串/集合操作、`@stepover`、嵌套函数调用、shell 命令、链接引用、条件分支、循环、边界情况（大整数、浮点精度、嵌套 dict、列表推导式等）。
+  - 也可作为回归测试用例。执行: 135 步 / 32 个渲染。
