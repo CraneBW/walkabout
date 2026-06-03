@@ -1,22 +1,16 @@
 """Embedded webview window — no external browser needed."""
-import sys, threading, time
+import sys
 
 def open_window(url: str = "http://localhost:8000"):
-    """Open the Walkabout UI in an embedded window. Falls back to browser."""
+    """Open the Walkabout UI in an embedded window. Falls back to browser.
+
+    The caller is responsible for starting the HTTP server *before* calling
+    this function. This function only opens a GUI window pointing at the
+    running server.
+    """
     # Try pywebview first (native window, no external browser)
     try:
         import webview
-        # Start server in background thread
-        def run_server():
-            import uvicorn
-            from .app import create_app
-            app = create_app()
-            uvicorn.run(app, host="127.0.0.1", port=8000, log_level="warning")
-
-        server_thread = threading.Thread(target=run_server, daemon=True)
-        server_thread.start()
-        time.sleep(1)  # Wait for server to be ready
-
         webview.create_window(
             "Walkabout — Interactive Code Walkthrough",
             url,
