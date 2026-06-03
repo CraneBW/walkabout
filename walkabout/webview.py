@@ -1,5 +1,7 @@
 """Embedded webview window — no external browser needed."""
 import sys
+import os
+
 
 def open_window(url: str = "http://localhost:8000"):
     """Open the Walkabout UI in an embedded window. Falls back to browser.
@@ -12,7 +14,14 @@ def open_window(url: str = "http://localhost:8000"):
     # Note: catch Exception (not just ImportError) because pywebview's qtpy
     # dependency raises QtBindingsNotFoundError when qtpy is installed but
     # no Qt backend (PyQt5/PySide6) is available.
+    # Also suppress stderr during the attempt to hide pywebview's internal
+    # "[pywebview] QT cannot be loaded" noise.
     try:
+        # Redirect stderr to /dev/null to suppress pywebview/qtpy noise
+        devnull = open(os.devnull, 'w')
+        old_stderr = sys.stderr
+        sys.stderr = devnull
+
         import webview
         webview.create_window(
             "Walkabout — Interactive Code Walkthrough",
@@ -25,6 +34,12 @@ def open_window(url: str = "http://localhost:8000"):
         return True
     except Exception:
         pass
+    finally:
+        sys.stderr = old_stderr
+        try:
+            devnull.close()
+        except Exception:
+            pass
 
     # Try PyQt5/PySide6 as fallback
     try:

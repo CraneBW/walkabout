@@ -26,6 +26,20 @@ class WriteNote(BaseModel):
     content: str
 
 
+def _ensure_package_init(path: Path) -> None:
+    """Ensure every parent directory of *path* has an __init__.py.
+
+    This makes subdirectories importable as Python packages when the
+    note is executed via runner.py → importlib.import_module().
+    """
+    for parent in reversed(path.parents):
+        if parent == path or parent == path.anchor:
+            continue
+        init = parent / "__init__.py"
+        if not init.exists():
+            init.write_text("", encoding="utf-8")
+
+
 def _resolve(relpath: str) -> Path:
     """Resolve a relative path to an absolute path under NOTES_DIR."""
     p = (NOTES_DIR / relpath).resolve()
@@ -78,6 +92,7 @@ def read_note(path: str) -> NoteContent:
 def write_note(path: str, body: WriteNote) -> dict:
     full = _resolve(path)
     full.parent.mkdir(parents=True, exist_ok=True)
+    _ensure_package_init(full)
     full.write_text(body.content, encoding="utf-8")
     return {"ok": True, "path": path}
 
@@ -89,6 +104,7 @@ def create_note(body: CreateNote) -> NoteContent:
         name += ".py"
     full = NOTES_DIR / name
     full.parent.mkdir(parents=True, exist_ok=True)
+    _ensure_package_init(full)
     if full.exists():
         raise HTTPException(409, f"Note already exists: {name}")
     full.write_text("# Walkthrough\n\nfrom execute_util import text, image, link\n\ndef main():\n    text('## Hello!')\n    text('Welcome to Walkabout!')\n", encoding="utf-8")

@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 export default function SettingsPage() {
+  const navigate = useNavigate();
   const [schema, setSchema] = useState([]);
   const [settings, setSettings] = useState({});
   const [defaults, setDefaults] = useState({});
@@ -23,6 +25,13 @@ export default function SettingsPage() {
       setJsonText(JSON.stringify(cfg, null, 2));
     });
   }, []);
+
+  // ESC key to close settings
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') navigate('/'); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [navigate]);
 
   const setValue = async (key, value) => {
     setSaving(true);
@@ -119,6 +128,7 @@ export default function SettingsPage() {
       <header className="toolbar">
         <span className="logo">⚙ Settings</span>
         <span className="toolbar-actions">
+          <button onClick={() => navigate('/')} className="back-btn" title="Close settings (ESC)">← Back</button>
           <button onClick={() => setMode('gui')} className={mode === 'gui' ? 'tab-active' : ''}>
             🖱 GUI
           </button>

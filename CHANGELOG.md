@@ -4,6 +4,15 @@
 
 ### Added
 
+- **全屏沉浸模式**
+  - 工具栏新增全屏切换按钮，通过 Fullscreen API 实现沉浸式编辑/查看体验；`fullscreenchange` 事件监听同步按钮状态。
+  - 影响文件: `frontend/src/pages/EditorPage.jsx`
+
+- **NOTES 文件夹/子目录支持**
+  - 后端 `write_note()`/`create_note()` 自动创建 `__init__.py` 使子目录可导入为 Python 包，支持路径式文件名（如 `tutorial/intro.py`）。
+  - 前端 FileBrowser 文件夹分组：按路径前缀自动归类文件为可折叠文件夹，新增文件输入框提示 `filename.py or path/name.py`。
+  - 影响文件: `walkabout/api/notes.py`, `frontend/src/components/FileBrowser.jsx`, `frontend/src/index.css`
+
 - **Trace 持久化 — 重启后保留上次执行的 trace**
   - 后端 `read_note()` 返回 `trace_url` 字段：打开文件时检查 `~/.walkabout/traces/` 下是否有对应的 trace JSON，若存在则自动恢复。
   - 前端 EditorPage 根据返回的 `trace_url` 恢复状态，无需重新 Run 即可查看上次执行结果。
@@ -38,6 +47,16 @@
   - EditorPage 执行 `executeNote()` 后得到 `trace_url` 但只保存在 React state 中，TraceViewer 从 URL query params 读取 `trace` 参数，两者未连接。
   - 修复: EditorPage 导入 `useNavigate`，执行成功后调用 `navigate('?trace=...')` 更新 URL；切换/删除文件时清除 URL params。
   - 影响文件: `frontend/src/pages/EditorPage.jsx`
+
+- **设置界面无法退出（无关闭按钮/ESC 快捷键）**
+  - SettingsPage 缺乏导航回 EditorPage 的机制，只能通过浏览器后退按钮。
+  - 修复: 导入 `useNavigate`，添加 ESC 键全局监听和 "← Back" 按钮。
+  - 影响文件: `frontend/src/pages/SettingsPage.jsx`
+
+- **pywebview 在无 Qt 后端时打印 `[pywebview] QT cannot be loaded` 噪声**
+  - pywebview 内部通过 qtpy 检测 Qt 绑定，未安装时输出红色错误信息到 stderr，破坏终端使用体验。
+  - 修复: 在 `import webview` 期间将 `sys.stderr` 重定向到 `/dev/null`，无论成功与否恢复。
+  - 影响文件: `walkabout/webview.py`
 
 - **qtpy 安装但无 Qt 后端导致 pywebview 崩溃**
   - `pywebview` 内部导入 `qtpy`，`qtpy` 找不到 PyQt5/PySide6 时抛出 `QtBindingsNotFoundError`（非 `ImportError`），原 `except ImportError` 无法捕获，导致原生窗口初始化失败。

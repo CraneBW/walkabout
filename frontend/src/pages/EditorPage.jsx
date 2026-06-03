@@ -22,6 +22,23 @@ export default function EditorPage() {
   const [tab, setTab] = useState('edit'); // 'edit' | 'view'
   const [traceUrl, setTraceUrl] = useState(null);
 
+  // Fullscreen toggle
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen();
+    }
+  };
+
   // Package install
   const [showInstall, setShowInstall] = useState(false);
   const [pkgInput, setPkgInput] = useState('');
@@ -163,6 +180,9 @@ export default function EditorPage() {
               </button>
               <button onClick={handleRun} disabled={executing} className="run-btn">
                 {executing ? '⏳' : '▶'} Run
+              </button>
+              <button onClick={toggleFullscreen} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'} className="fs-btn">
+                {isFullscreen ? '⛶' : '⛶'}
               </button>
               <a href="/settings" title="Settings" className="gear-link">⚙</a>
               <button onClick={() => setShowInstall(!showInstall)} title="Install packages" className="pkg-btn">

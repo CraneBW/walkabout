@@ -157,6 +157,23 @@ html, body, #root {
 .file-list li:hover .delete-btn { display: block; }
 .delete-btn:hover { color: #f44747; }
 
+/* Folder groups */
+.folder-group { display: block !important; padding: 0 !important; cursor: default !important; }
+.folder-group:hover { background: transparent !important; }
+.folder-toggle {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  gap: 4px;
+}
+.folder-toggle:hover { background: #2a2d2e; }
+.folder-icon { font-size: 14px; }
+.folder-name { color: #888; font-size: 12px; }
+.folder-chevron { color: #555; font-size: 10px; margin-left: auto; }
+.folder-children { list-style: none; padding: 0; }
+
 /* === Editor Area === */
 .editor-area {
   flex: 1;
