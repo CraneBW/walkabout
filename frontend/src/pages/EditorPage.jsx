@@ -22,7 +22,8 @@ export default function EditorPage() {
   const [tab, setTab] = useState('edit'); // 'edit' | 'view'
   const [traceUrl, setTraceUrl] = useState(null);
 
-  // Fullscreen toggle
+  // Zen mode (fullscreen + hide chrome)
+  const [zenMode, setZenMode] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
@@ -38,6 +39,27 @@ export default function EditorPage() {
       document.documentElement.requestFullscreen();
     }
   };
+
+  const toggleZen = () => {
+    const next = !zenMode;
+    setZenMode(next);
+    if (next && !document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else if (!next && document.fullscreenElement) {
+      document.exitFullscreen();
+    }
+  };
+
+  // ESC exits zen mode
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'Escape' && zenMode) {
+        setZenMode(false);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [zenMode]);
 
   // Package install
   const [showInstall, setShowInstall] = useState(false);
@@ -55,6 +77,15 @@ export default function EditorPage() {
 
   useEffect(() => { refreshFiles(); }, [refreshFiles]);
 
+  // Restore selected file from URL on mount (survives settings → back navigation)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const fileParam = params.get('file');
+    if (fileParam) {
+      selectNote(fileParam);
+    }
+  }, []);
+
   const selectNote = async (path) => {
     setLoading(true);
     setError(null);
@@ -69,7 +100,7 @@ export default function EditorPage() {
       } else {
         setTraceUrl(null);
       }
-      navigate('');
+      navigate('?file=' + encodeURIComponent(path), { replace: true });
       setTab('edit');
     } catch (e) {
       setError('Failed to load: ' + path);
@@ -147,7 +178,7 @@ export default function EditorPage() {
         setContent('');
         setTab('edit');
         setTraceUrl(null);
-        navigate('');
+        navigate('', { replace: true });
       }
       await refreshFiles();
     } catch (e) {
@@ -155,8 +186,15 @@ export default function EditorPage() {
     }
   };
 
+  const exitZen = () => {
+    setZenMode(false);
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    }
+  };
+
   return (
-    <div className="editor-page">
+    <div className={`editor-page${zenMode ? ' zen-mode' : ''}`}>
       <header className="toolbar">
         <span className="logo">Walkabout</span>
         <span className="toolbar-actions">
@@ -181,8 +219,8 @@ export default function EditorPage() {
               <button onClick={handleRun} disabled={executing} className="run-btn">
                 {executing ? '⏳' : '▶'} Run
               </button>
-              <button onClick={toggleFullscreen} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'} className="fs-btn">
-                {isFullscreen ? '⛶' : '⛶'}
+              <button onClick={toggleZen} title={zenMode ? 'Exit zen mode' : 'Zen mode (hide chrome)'} className="fs-btn">
+                {zenMode ? '◻' : '⊞'}
               </button>
               <a href="/settings" title="Settings" className="gear-link">⚙</a>
               <button onClick={() => setShowInstall(!showInstall)} title="Install packages" className="pkg-btn">
@@ -218,6 +256,11 @@ export default function EditorPage() {
         />
         <div className="editor-area">
           {error && <div className="error-banner">{error} <button onClick={() => setError(null)}>×</button></div>}
+          {zenMode && (
+            <button className="exit-zen-btn" onClick={exitZen} title="Exit zen mode (ESC)">
+              ⊞ Exit zen
+            </button>
+          )}
           {execResult && execResult.status === 'error' && (
             <div className="exec-error">
               <strong>Execution Error:</strong>

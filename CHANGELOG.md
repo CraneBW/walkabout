@@ -4,8 +4,14 @@
 
 ### Added
 
-- **全屏沉浸模式**
-  - 工具栏新增全屏切换按钮，通过 Fullscreen API 实现沉浸式编辑/查看体验；`fullscreenchange` 事件监听同步按钮状态。
+- **Zen 模式 — 隐藏侧边栏 + 工具栏，纯净编辑体验**
+  - 工具栏 ⊞ 按钮切换 Zen 模式：隐藏 FileBrowser 侧边栏、工具栏、安装栏，仅保留编辑器/查看器区域。
+  - 自动触发 Fullscreen API；ESC 或浮动按钮退出 Zen 模式。
+  - 影响文件: `frontend/src/pages/EditorPage.jsx`, `frontend/src/index.css`
+
+- **文件状态通过 URL 持久化 — 设置页返回不丢失**
+  - EditorPage 挂载时从 `?file=xxx` 查询参数恢复已打开文件，`selectNote()` 自动更新 URL。
+  - 从 SettingsPage 返回 `/` 后自动重开上次编辑的文件。
   - 影响文件: `frontend/src/pages/EditorPage.jsx`
 
 - **NOTES 文件夹/子目录支持**
@@ -32,6 +38,11 @@
   - 影响文件: `walkabout/examples/demo_walkthrough.py`
 
 ### Fixed
+
+- **_ensure_package_init 递归到根目录导致 PermissionError**
+  - `reversed(path.parents)` 遍历到文件系统 `/`，试图创建 `/__init__.py` 时报权限错误。
+  - 修复: 添加 `NOTES_DIR` 边界检查，仅处理 NOTES_DIR 下的子目录。
+  - 影响文件: `walkabout/api/notes.py`
 
 - **MathJax 公式在 TraceViewer 中不渲染**
   - MathJax CDN 异步加载，动态渲染的 TraceViewer 内容 MathJax 无感知。`MathJax.typeset()` 调用时序不可靠。

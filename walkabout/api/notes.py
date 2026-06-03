@@ -27,13 +27,18 @@ class WriteNote(BaseModel):
 
 
 def _ensure_package_init(path: Path) -> None:
-    """Ensure every parent directory of *path* has an __init__.py.
+    """Ensure every parent directory of *path* under NOTES_DIR has an __init__.py.
 
     This makes subdirectories importable as Python packages when the
     note is executed via runner.py → importlib.import_module().
+    Only directories strictly below NOTES_DIR get __init__.py to avoid
+    touching filesystem roots (e.g. /__init__.py).
     """
+    notes_root = str(NOTES_DIR.resolve()) + "/"
     for parent in reversed(path.parents):
         if parent == path or parent == path.anchor:
+            continue
+        if not str(parent) + "/".startswith(notes_root):
             continue
         init = parent / "__init__.py"
         if not init.exists():
