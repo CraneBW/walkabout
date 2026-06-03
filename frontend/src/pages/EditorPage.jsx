@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import FileBrowser from '../components/FileBrowser';
 import Editor from '../components/Editor';
 import TraceViewer from '../TraceViewer';
-import { listNotes, getNote, saveNote, createNote, deleteNote, executeNote, exportNote } from '../api';
+import { listNotes, getNote, saveNote, createNote, deleteNote, executeNote, exportNote, saveExport } from '../api';
 import { getEnvInfo, installPackages } from '../api';
 
 export default function EditorPage() {
@@ -177,10 +177,9 @@ export default function EditorPage() {
       if (result.status !== 'ok') {
         throw new Error(result.error || 'Execution failed');
       }
-      // Browser-native download via GET
-      const name = selectedPath.split('/').pop() || selectedPath;
-      showToast('Downloading ' + name.replace('.py', '.html') + ' ...');
-      exportNote(selectedPath);
+      // Save to configured export directory on disk
+      const result = await saveExport(selectedPath);
+      showToast('Exported → ' + result.path);
     } catch (e) {
       setError('Export failed: ' + (e.message || e));
     }

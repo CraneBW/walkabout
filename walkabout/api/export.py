@@ -8,7 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from ..config import NOTES_DIR, TRACES_DIR, ensure_dirs, get_python_path
+from ..config import NOTES_DIR, TRACES_DIR, ensure_dirs, get_python_path, load_settings
 from ..export import export_note
 
 router = APIRouter(prefix="/api/export", tags=["export"])
@@ -113,3 +113,41 @@ def preview_export(path: str) -> FileResponse:
     if not html_path.exists():
         raise HTTPException(404, "Export not found. Run export first.")
     return FileResponse(str(html_path), media_type="text/html")
+
+
+@router.post("/save")
+def export_and_save(req: ExportRequest) -> dict:
+    """Generate standalone HTML and save to the configured export directory.
+
+    Returns the absolute path to the saved file so the UI can show it.
+    """
+    ensure_dirs()
+
+    note_path = NOTES_DIR / req.path
+    note_path.parent.mkdir(parents=True, exist_ok=True)
+    if req.content is not None:
+        note_path.write_text(req.content, encoding="utf-8")
+    if not note_path.exists():
+        raise HTTPException(404, f"Note not found: {req.path}")
+
+    module_name = req.path.replace("/", ".").replace(".py", "")
+    html_name = module_name.replace(".", "_") + ".html"
+
+    # Determine export directory from settings (default: ~/.walkabout/exports)
+    settings = load_settings()
+    export_dir = settings.get("export", {}).get("directory", "") or ""
+    if export_dir:
+        export_path = Path(export_dir)
+    else:
+        export_path = Path.home() / ".walkabout" / "exports"
+    export_path.mkdir(parents=True, exist_ok=True)
+    html_path = export_path / html_name
+
+    try:
+        trace_path = _run_trace(note_path, module_name)
+        title = req.title or module_name
+        export_note(trace_path, html_path, title=title)
+    except RuntimeError as e:
+        raise HTTPException(500, str(e))
+
+    return {"path": str(html_path)}

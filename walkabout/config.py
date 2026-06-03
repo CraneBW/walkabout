@@ -61,6 +61,11 @@ SETTINGS_SCHEMA = [
      "description": "Window height (px)", "category": "Window"},
     {"key": "window.port", "type": "integer", "default": 8000,
      "description": "Server port", "category": "Window"},
+
+    # ── Export ──
+    {"key": "export.directory", "type": "string", "default": "",
+     "description": "Directory for exported HTML files (leave empty for ~/.walkabout/exports)",
+     "category": "Export"},
 ]
 
 

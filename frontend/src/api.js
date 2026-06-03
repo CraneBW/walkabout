@@ -49,3 +49,8 @@ export async function exportNote(path) {
   a.click();
   document.body.removeChild(a);
 }
+
+export async function saveExport(path) {
+  const res = await axios.post('/api/export/save', { path });
+  return res.data;
+}
