@@ -22,42 +22,55 @@ html, body, #root {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding: 0 12px;
   height: 40px;
   background: #252526;
   border-bottom: 1px solid #3c3c3c;
   flex-shrink: 0;
+  gap: 8px;
 }
 
 .toolbar .logo {
   font-weight: 700;
   font-size: 16px;
   color: #60c0ff;
+  letter-spacing: 0.5px;
+  user-select: none;
 }
 
 .toolbar .file-path {
   color: #888;
   font-size: 12px;
-  margin-right: 12px;
+  margin-right: 8px;
+  font-family: 'Fira Code', monospace;
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .toolbar button {
-  background: #0e639c;
-  color: #fff;
-  border: none;
-  padding: 4px 12px;
-  margin-left: 8px;
-  border-radius: 3px;
+  background: transparent;
+  color: #ccc;
+  border: 1px solid transparent;
+  padding: 4px 10px;
+  border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
+  transition: all 0.15s ease;
 }
-
-.toolbar button:hover { background: #1177bb; }
-.toolbar button:disabled { opacity: 0.5; cursor: default; }
-.toolbar button.run-btn { background: #16825d; }
-.toolbar button.run-btn:hover { background: #1a9e6e; }
-.toolbar button.export-btn { background: #6c5ce7; }
-.toolbar button.export-btn:hover { background: #7c6cf7; }
+.toolbar button:hover { background: #3c3c3c; border-color: #555; }
+.toolbar button:disabled { opacity: 0.4; cursor: default; border-color: transparent; }
+.toolbar button.tab-active {
+  background: #37373d;
+  border-bottom: 2px solid #60c0ff;
+}
+.toolbar button.run-btn { background: #16825d; color: #fff; border-color: #16825d; }
+.toolbar button.run-btn:hover { background: #1a9e6e; border-color: #1a9e6e; }
+.toolbar button.export-btn { background: #6c5ce7; color: #fff; border-color: #6c5ce7; }
+.toolbar button.export-btn:hover { background: #7c6cf7; border-color: #7c6cf7; }
 
 .main-area {
   display: flex;
@@ -67,13 +80,23 @@ html, body, #root {
 
 /* === File Browser === */
 .file-browser {
-  width: 220px;
+  width: 240px;
   background: #252526;
   border-right: 1px solid #3c3c3c;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   overflow: hidden;
+  transition: width 0.2s ease, opacity 0.15s ease;
+}
+
+.sidebar-hidden .file-browser {
+  width: 0;
+  min-width: 0;
+  padding: 0;
+  opacity: 0;
+  overflow: hidden;
+  border-right: none;
 }
 
 .file-browser-header {
@@ -82,69 +105,96 @@ html, body, #root {
   justify-content: space-between;
   padding: 8px 12px;
   border-bottom: 1px solid #3c3c3c;
+  flex-shrink: 0;
 }
 
 .file-browser-header h3 {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   color: #888;
+  letter-spacing: 0.8px;
 }
 
-.new-btn {
+.file-browser-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.new-btn, .new-folder-btn {
   background: none;
-  border: 1px solid #555;
+  border: 1px solid transparent;
   color: #ccc;
   width: 24px; height: 24px;
-  border-radius: 3px;
+  border-radius: 4px;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.new-btn:hover { background: #3c3c3c; }
+.new-btn:hover { background: #3c3c3c; border-color: #555; }
+.new-folder-btn:hover { background: #3c3c3c; border-color: #555; }
 
 .new-file-input {
   display: flex;
   padding: 6px;
   gap: 4px;
+  background: #2d2d30;
+  border-bottom: 1px solid #3c3c3c;
 }
 .new-file-input input {
   flex: 1;
   background: #3c3c3c;
   border: 1px solid #555;
   color: #ccc;
-  padding: 3px 6px;
-  border-radius: 3px;
+  padding: 4px 8px;
+  border-radius: 4px;
   font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.new-file-input input:focus {
+  border-color: #007acc;
 }
 .new-file-input button {
   background: #0e639c;
   border: none;
   color: #fff;
-  padding: 3px 8px;
-  border-radius: 3px;
+  padding: 4px 10px;
+  border-radius: 4px;
   cursor: pointer;
   font-size: 11px;
+  transition: background 0.15s ease;
 }
+.new-file-input button:hover { background: #1177bb; }
 
 .file-list {
   list-style: none;
   overflow-y: auto;
   flex: 1;
+  padding: 4px 0;
 }
 
 .file-list li {
   display: flex;
   align-items: center;
-  padding: 6px 12px;
+  padding: 5px 12px;
   cursor: pointer;
   font-size: 13px;
   gap: 6px;
+  transition: background 0.1s ease;
+  border-left: 2px solid transparent;
 }
 .file-list li:hover { background: #2a2d2e; }
-.file-list li.selected { background: #37373d; }
+.file-list li.selected {
+  background: #37373d;
+  border-left-color: #60c0ff;
+}
 
-.file-icon { font-size: 14px; }
+.file-icon { font-size: 14px; flex-shrink: 0; }
 .file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .delete-btn {
@@ -153,11 +203,13 @@ html, body, #root {
   border: none;
   color: #888;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   padding: 0 4px;
+  line-height: 1;
+  border-radius: 3px;
 }
 .file-list li:hover .delete-btn { display: block; }
-.delete-btn:hover { color: #f44747; }
+.delete-btn:hover { color: #f44747; background: rgba(244,71,71,0.1); }
 
 /* Folder groups */
 .folder-group { display: block !important; padding: 0 !important; cursor: default !important; }
@@ -165,15 +217,39 @@ html, body, #root {
 .folder-toggle {
   display: flex;
   align-items: center;
-  padding: 6px 12px;
+  padding: 5px 12px;
   cursor: pointer;
   font-size: 13px;
   gap: 4px;
+  transition: background 0.1s ease;
 }
 .folder-toggle:hover { background: #2a2d2e; }
-.folder-icon { font-size: 14px; }
-.folder-name { color: #888; font-size: 12px; }
-.folder-chevron { color: #555; font-size: 10px; margin-left: auto; }
+.folder-icon { font-size: 14px; flex-shrink: 0; }
+.folder-name { color: #aaa; font-size: 12px; font-weight: 500; }
+.folder-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.folder-add-btn {
+  display: none;
+  background: none;
+  border: 1px solid transparent;
+  color: #888;
+  width: 20px; height: 20px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.15s ease;
+}
+.folder-toggle:hover .folder-add-btn { display: flex; }
+.folder-add-btn:hover { background: #3c3c3c; color: #ccc; border-color: #555; }
+.folder-chevron { color: #555; font-size: 10px; }
 .folder-children { list-style: none; padding: 0; }
 
 /* === Editor Area === */

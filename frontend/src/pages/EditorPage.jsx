@@ -27,6 +27,17 @@ export default function EditorPage() {
   const [zenMode, setZenMode] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // Sidebar toggle (independent of zen mode)
+  const [sidebarVisible, setSidebarVisible] = useState(true);
+
+  // Toast notifications
+  const [toast, setToast] = useState(null);
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  };
+
   useEffect(() => {
     const handler = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', handler);
@@ -167,6 +178,8 @@ export default function EditorPage() {
         throw new Error(result.error || 'Execution failed');
       }
       // Browser-native download via GET
+      const name = selectedPath.split('/').pop() || selectedPath;
+      showToast('Downloading ' + name.replace('.py', '.html') + ' ...');
       exportNote(selectedPath);
     } catch (e) {
       setError('Export failed: ' + (e.message || e));
@@ -223,7 +236,7 @@ export default function EditorPage() {
   };
 
   return (
-    <div className={`editor-page${zenMode ? ' zen-mode' : ''}`}>
+    <div className={`editor-page${zenMode ? ' zen-mode' : ''}${!sidebarVisible ? ' sidebar-hidden' : ''}`}>
       <header className="toolbar">
         <span className="logo">Walkabout</span>
         <span className="toolbar-actions">
@@ -250,6 +263,9 @@ export default function EditorPage() {
               </button>
               <button onClick={handleExport} disabled={exporting} className="export-btn" title="Export as standalone HTML">
                 {exporting ? '⏳' : '↓'} Export
+              </button>
+              <button onClick={() => setSidebarVisible(!sidebarVisible)} title={sidebarVisible ? 'Hide sidebar' : 'Show sidebar'} className="sidebar-toggle-btn">
+                {sidebarVisible ? '☰' : '☰'}
               </button>
               <button onClick={toggleZen} title={zenMode ? 'Exit zen mode' : 'Zen mode (hide chrome)'} className="fs-btn">
                 {zenMode ? '◻' : '⊞'}
@@ -319,6 +335,7 @@ export default function EditorPage() {
           )}
         </div>
       </div>
+      {toast && <div className="toast">{toast}</div>}
     </div>
   );
 }
