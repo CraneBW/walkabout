@@ -170,7 +170,26 @@ def type_coercion():
     back_to_str = str(num_float)  # @inspect back_to_str
 
 
-# ── 12. 条件逻辑 ──────────────────────────────────────────────
+# ── 12. 数学公式渲染（MathJax） ────────────────────────────────
+
+def math_formulas():
+    text(r"### 数学公式")
+
+    # 行内公式
+    text(r"欧拉恒等式: $e^{i\pi} + 1 = 0$")
+    text(r"勾股定理: $a^2 + b^2 = c^2$")
+
+    # 块级公式
+    text(r"$$ \frac{-b \pm \sqrt{b^2 - 4ac}}{2a} $$")
+
+    text(r"$$ \int_{0}^{\infty} e^{-x^2} \, dx = \frac{\sqrt{\pi}}{2} $$")
+
+    text(r"$$ \nabla \times \mathbf{E} = -\frac{\partial \mathbf{B}}{\partial t} $$")
+
+    text(r"$$ \sum_{k=1}^{n} k^2 = \frac{n(n+1)(2n+1)}{6} $$")
+
+
+# ── 13. 条件逻辑 ──────────────────────────────────────────────
 
 def conditionals():
     score = 85  # @inspect score
@@ -234,6 +253,9 @@ def main():
     text("---\n## 类型转换")
 
     type_coercion()
+    text("---\n## 数学公式")
+
+    math_formulas()
     text("---\n## 条件分支")
 
     conditionals()

@@ -21,9 +21,9 @@ function TraceViewer() {
   const [trace, setTrace] = useState(null);
 
   // Add new state for position and offset
-  const [envPosition, setEnvPosition] = useState({ x: 20, y: 20 });
+  const [envPosition, setEnvPosition] = useState({ rx: 20, y: 60 });
   const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [dragOffset, setDragOffset] = useState({ rx: 0, y: 0 });
 
   // Fetch trace from backend
   useEffect(() => {
@@ -93,7 +93,7 @@ function TraceViewer() {
       const panel = e.target.closest('.env-panel');
       const rect = panel.getBoundingClientRect();
       setDragOffset({
-        x: e.clientX - rect.left,
+        rx: rect.right - e.clientX,  // distance from click to right edge
         y: e.clientY - rect.top
       });
       setIsDragging(true);
@@ -104,7 +104,7 @@ function TraceViewer() {
   const handleMouseMove = (e) => {
     if (isDragging) {
       setEnvPosition({
-        x: e.clientX - dragOffset.x,
+        rx: window.innerWidth - e.clientX - dragOffset.rx,
         y: e.clientY - dragOffset.y
       });
     }
@@ -181,7 +181,7 @@ function TraceViewer() {
       <div
         className="env-panel"
         style={{
-          left: envPosition.x,
+          right: envPosition.rx,
           top: envPosition.y,
           cursor: isDragging ? 'grabbing' : 'grab',
         }}

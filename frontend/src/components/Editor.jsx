@@ -1,9 +1,4 @@
-import Monaco, { loader } from '@monaco-editor/react';
-import * as monaco from 'monaco-editor';
-
-// Use local monaco-editor bundle instead of CDN
-// This eliminates ~30MB download on every file open
-loader.config({ monaco });
+import Monaco from '@monaco-editor/react';
 
 export default function Editor({ content, onChange }) {
   return (

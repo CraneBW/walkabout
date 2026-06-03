@@ -303,7 +303,7 @@ img { max-width: 100%; }
 
 .env-panel {
   position: fixed;
-  bottom: 20px;
+  top: 60px;
   right: 20px;
   background: #252526;
   border: 1px solid #555;
