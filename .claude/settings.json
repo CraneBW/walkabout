@@ -1,0 +1,34 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import sys,json; d=json.load(sys.stdin); p=d.get('tool_input',{}).get('file_path',''); print(p)\" 2>/dev/null | { read -r f; [ -n \"$f\" ] && [ \"${f##*.}\" = \"py\" ] && (python3 -m py_compile \"$f\" 2>&1 && echo '  Syntax OK' || echo '  Syntax error') || true; }",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npm *)",
+      "Bash(git *)",
+      "Bash(uv *)",
+      "Bash(python *)",
+      "Bash(uvicorn *)",
+      "Bash(cd *)",
+      "Bash(mkdir *)",
+      "Bash(ls *)",
+      "Bash(pkill *)",
+      "Bash(node *)",
+      "Write(/home/ucrane/obsidian/walkabout/**)",
+      "Edit(/home/ucrane/obsidian/walkabout/**)",
+      "Write(/home/ucrane/.walkabout/**)",
+      "Read"
+    ]
+  }
+}

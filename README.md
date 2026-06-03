@@ -2,21 +2,59 @@
 
 交互式代码讲解编辑器 — 写 Python 脚本，逐行回放。**独立桌面应用，不依赖外部浏览器。**
 
+## 系统依赖
+
+pywebview 在不同平台上需要不同的系统库来嵌入 Web 渲染引擎：
+
+### Arch Linux
+
+```bash
+sudo pacman -S webkit2gtk python-gobject gtk3
+```
+
+### Ubuntu / Debian
+
+```bash
+sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev libgirepository1.0-dev
+```
+
+### Fedora
+
+```bash
+sudo dnf install webkit2gtk4.1-devel gtk3-devel gobject-introspection-devel
+```
+
+### macOS
+
+无需额外系统依赖（使用系统 WKWebView）。
+
+### Windows
+
+无需额外系统依赖（使用系统 Edge WebView2）。
+
 ## 快速开始
 
 ```bash
-# 从源码安装
-git clone <repo>
+# 克隆仓库
+git clone git@github.com:CraneBW/walkabout.git
 cd walkabout
-pip install -e ".[gui]"
+
+# 安装 Python 依赖（含 GUI）
+uv pip install -e ".[gui]"
+uv pip install pywebview PyGObject   # Linux 额外需要
+
+# 构建前端
+cd frontend && npm install && npm run build && cd ..
 
 # 启动（原生窗口，无外部浏览器）
 walkabout
 
-# 或开发模式（Vite热重载 + 浏览器）
-cd frontend && npm install && npm run dev
+# 或开发模式（Vite 热重载 + 浏览器）
+cd frontend && npm run dev &
 PYTHONPATH=$PWD python3 -m walkabout
 ```
+
+> **Python 3.9 用户**：Walkabout 支持 Python 3.9+，但推荐 3.11+ 以获得最佳 pywebview 兼容性。
 
 ## 架构
 
@@ -168,6 +206,49 @@ class MyPlugin(WalkaboutPlugin):
 git clone <repo> && cd walkabout
 pip install -e ".[dev]"       # 安装所有可选依赖
 cd frontend && npm install    # 安装前端依赖
+```
+
+## Claude Code 集成
+
+本项目自带 `.claude/` 配置，克隆后在 Claude Code 中打开即可使用以下能力：
+
+### Skills
+
+| Skill | 触发方式 | 说明 |
+|-------|---------|------|
+| `create-walkthrough` | `/create-walkthrough <主题>` | 在 `~/.walkabout/notes/` 创建 walkthrough `.py` 脚本 |
+| `walkabout-dev` | `/walkabout-dev` | 一键检测环境、构建前端、启动开发模式 |
+
+### Hooks
+
+| Hook | 事件 | 说明 |
+|------|------|------|
+| 语法检查 | `PostToolUse` (Write/Edit) | 保存 `.py` 脚本后自动 `py_compile` 检查语法 |
+| 环境提醒 | `SessionStart` | 进入项目时提示 Walkabout 启动方式 |
+
+### MCP
+
+推荐配合以下 MCP 服务器使用：
+
+| MCP Server | 用途 |
+|------------|------|
+| **MCPVault** (`@anthropic/mcpvault`) | 在 Obsidian vault 中管理 `.walkabout` 笔记，双向链接 walkthrough 脚本 |
+| **Filesystem** (`@anthropic/mcp-filesystem`) | 让 Claude 直接读写 `~/.walkabout/notes/` 和 `~/.walkabout/traces/` |
+
+在 `~/.claude/settings.json` 或项目 `.claude/settings.json` 中配置：
+
+```json
+{
+  "enabledMcpjsonServers": ["mcpvault", "filesystem"]
+}
+```
+
+### Plugin
+
+Walkabout 有自己的插件系统（`~/.walkabout/plugins/`），Claude 可以帮你创建插件：
+
+```
+/plugin:create <插件名>  # 创建插件骨架
 ```
 
 ## 许可
