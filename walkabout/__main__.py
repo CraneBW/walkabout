@@ -3,8 +3,26 @@
 Launches as a standalone desktop app with embedded webview.
 No external browser required.
 """
-import sys, os, threading, time, signal
-import uvicorn
+import sys, os, threading, time, socket
+
+
+def _create_bind_socket(host: str, port: int) -> socket.socket:
+    """Create a TCP socket with SO_REUSEADDR, bound and listening."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind((host, port))
+    sock.listen(2048)
+    return sock
+
+
+def _run_server(app, host: str, port: int, log_level: str = "info") -> None:
+    """Run uvicorn with a pre-created socket to avoid TIME-WAIT conflicts."""
+    import uvicorn
+
+    sock = _create_bind_socket(host, port)
+    config = uvicorn.Config(app, host=host, port=port, log_level=log_level)
+    server = uvicorn.Server(config=config)
+    server.run(sockets=[sock])
 
 
 def main():
@@ -13,6 +31,7 @@ def main():
 
     settings = load_settings()
     port = settings.get("window", {}).get("port", 8000)
+    host = "127.0.0.1"
 
     print(" Walkabout — Interactive Code Walkthrough Editor")
 
@@ -46,37 +65,49 @@ def main():
         print(f"   WSL2 detected — server starting at:")
         print(f"   →  {url}")
         print(f"   Open this URL in your Windows browser. (WSL2 auto-forwards localhost)\n")
-        uvicorn.run(app, host="127.0.0.1", port=port, log_level="info")
+        _run_server(app, host, port, log_level="info")
         return
 
     if not has_display:
         print(f"   Headless mode — server starting at {url}\n")
-        uvicorn.run(app, host="127.0.0.1", port=port, log_level="info")
+        _run_server(app, host, port, log_level="info")
         return
 
     # Has display — try native window
     try:
         from walkabout.webview import open_window
+    except ImportError:
+        open_window = None  # pywebview not installed, skip native window
 
-        def serve():
-            uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")
-
-        server_thread = threading.Thread(target=serve, daemon=True)
+    if open_window:
+        # Start server in background thread for the native window case
+        server_thread = threading.Thread(
+            target=_run_server,
+            args=(app, host, port),
+            kwargs=dict(log_level="warning"),
+            daemon=True,
+        )
         server_thread.start()
         time.sleep(1.5)
         print("   Launching native window...")
-        open_window(url)
-        return
-    except ImportError:
-        pass
-    except Exception as e:
-        print(f"   pywebview failed ({e}), falling back to browser...")
+        try:
+            open_window(url)
+            server_thread.join()
+            return
+        except Exception as e:
+            print(f"   pywebview failed ({e}), falling back to browser...")
+            print(f"   Opening {url} ...")
+            import webbrowser
+            webbrowser.open(url)
+            # Server thread is already running — keep the process alive by waiting
+            server_thread.join()
+            return
 
-    # Fallback: system browser
+    # Fallback: browser mode (server runs in main thread)
     print(f"   Opening {url} ...")
     import webbrowser
     webbrowser.open(url)
-    uvicorn.run(app, host="127.0.0.1", port=port, log_level="info")
+    _run_server(app, host, port, log_level="info")
 
 
 if __name__ == "__main__":
