@@ -619,7 +619,7 @@ function MarkdownRenderer({ content, style }) {
     }
   }, [renderedContent]);  // If put this, then don't update; otherwise too slow
 
-  return <span className="markdown" style={style} dangerouslySetInnerHTML={{ __html: renderedContent }} />;
+  return <div className="markdown" style={style} dangerouslySetInnerHTML={{ __html: renderedContent }} />;
 }
 
 function ExternalLink({ link, style }) {
