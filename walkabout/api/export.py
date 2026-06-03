@@ -49,6 +49,30 @@ def _run_trace(note_path: Path, module_name: str) -> Path:
     return trace_path
 
 
+@router.get("")
+def export_note_get(path: str, title: Optional[str] = None) -> FileResponse:
+    """Generate and download standalone HTML from an existing trace (GET version)."""
+    ensure_dirs()
+
+    module_name = path.replace("/", ".").replace(".py", "")
+    trace_path = TRACES_DIR / f"{module_name}.json"
+    if not trace_path.exists():
+        raise HTTPException(404, "No trace found. Run the note first, then export.")
+
+    html_name = module_name.replace(".", "_") + ".html"
+    html_path = TRACES_DIR / html_name
+
+    name = title or module_name
+    export_note(trace_path, html_path, title=name)
+
+    return FileResponse(
+        str(html_path),
+        media_type="text/html",
+        filename=html_name,
+        headers={"Content-Disposition": f'attachment; filename="{html_name}"'},
+    )
+
+
 @router.post("")
 def export_note_endpoint(req: ExportRequest) -> FileResponse:
     """Run a note and return a standalone HTML file as download."""

@@ -161,9 +161,15 @@ export default function EditorPage() {
         await saveNote(selectedPath, content);
         setDirty(false);
       }
-      await exportNote(selectedPath, content);
+      // Run first to generate trace, then download standalone HTML
+      const result = await executeNote(selectedPath, content);
+      if (result.status !== 'ok') {
+        throw new Error(result.error || 'Execution failed');
+      }
+      // Browser-native download via GET
+      exportNote(selectedPath);
     } catch (e) {
-      setError('Export failed: ' + (e.response?.data?.detail || e.message));
+      setError('Export failed: ' + (e.message || e));
     }
     setExporting(false);
   };

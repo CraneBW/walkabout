@@ -38,20 +38,7 @@ export async function installPackages(packages) {
   return res.data;
 }
 
-export async function exportNote(path, content) {
-  const res = await axios.post('/api/export', { path, content }, {
-    responseType: 'blob',
-  });
-  // Trigger download
-  const url = window.URL.createObjectURL(new Blob([res.data]));
-  const link = document.createElement('a');
-  link.href = url;
-  const disposition = res.headers['content-disposition'];
-  const match = disposition && disposition.match(/filename="?(.+?)"?$/);
-  link.download = match ? match[1] : 'walkthrough.html';
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.URL.revokeObjectURL(url);
-  return res;
+export async function exportNote(path) {
+  // Browser-native download: navigate to GET endpoint
+  window.location.href = `/api/export?path=${encodeURIComponent(path)}`;
 }
