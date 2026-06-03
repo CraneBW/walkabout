@@ -98,8 +98,9 @@
 - 后端管理 git 快照，前端展示 diff，允许回退到历史版本。
 - 预计: 1 周。
 
-### F4. 导出为静态 HTML
-- 将 trace JSON + viewer 前端打包为自包含 `.html`，直接分享（类似 Jupyter nbconvert）。
+### F4. 导出为静态 HTML（已完成）
+- ✅ 将 trace JSON + viewer 前端打包为自包含 `.html`，直接分享（类似 Jupyter nbconvert）。
+- ✅ 实现: `walkabout/export.py` + `POST /api/export` + 前端 ↓ Export 按钮
 - 预计: 3 天。
 
 ### F5. 编辑器内联变量显示

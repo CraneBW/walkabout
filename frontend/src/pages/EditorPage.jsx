@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import FileBrowser from '../components/FileBrowser';
 import Editor from '../components/Editor';
 import TraceViewer from '../TraceViewer';
-import { listNotes, getNote, saveNote, createNote, deleteNote, executeNote } from '../api';
+import { listNotes, getNote, saveNote, createNote, deleteNote, executeNote, exportNote } from '../api';
 import { getEnvInfo, installPackages } from '../api';
 
 export default function EditorPage() {
@@ -14,6 +14,7 @@ export default function EditorPage() {
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [executing, setExecuting] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [execResult, setExecResult] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -151,6 +152,22 @@ export default function EditorPage() {
     setExecuting(false);
   };
 
+  const handleExport = async () => {
+    if (!selectedPath) return;
+    setExporting(true);
+    setError(null);
+    try {
+      if (dirty) {
+        await saveNote(selectedPath, content);
+        setDirty(false);
+      }
+      await exportNote(selectedPath, content);
+    } catch (e) {
+      setError('Export failed: ' + (e.response?.data?.detail || e.message));
+    }
+    setExporting(false);
+  };
+
   const handleInstall = async () => {
     if (!pkgInput.trim()) return;
     setInstalling(true);
@@ -224,6 +241,9 @@ export default function EditorPage() {
               </button>
               <button onClick={handleRun} disabled={executing} className="run-btn">
                 {executing ? '⏳' : '▶'} Run
+              </button>
+              <button onClick={handleExport} disabled={exporting} className="export-btn" title="Export as standalone HTML">
+                {exporting ? '⏳' : '↓'} Export
               </button>
               <button onClick={toggleZen} title={zenMode ? 'Exit zen mode' : 'Zen mode (hide chrome)'} className="fs-btn">
                 {zenMode ? '◻' : '⊞'}

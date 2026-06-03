@@ -56,6 +56,8 @@ html, body, #root {
 .toolbar button:disabled { opacity: 0.5; cursor: default; }
 .toolbar button.run-btn { background: #16825d; }
 .toolbar button.run-btn:hover { background: #1a9e6e; }
+.toolbar button.export-btn { background: #6c5ce7; }
+.toolbar button.export-btn:hover { background: #7c6cf7; }
 
 .main-area {
   display: flex;

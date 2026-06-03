@@ -11,6 +11,7 @@ from .api.notes import router as notes_router
 from .api.execute import router as execute_router
 from .api.env import router as env_router
 from .api.config import router as config_router
+from .api.export import router as export_router
 from .plugins.manager import PluginManager
 
 
@@ -32,6 +33,7 @@ def create_app() -> FastAPI:
     app.include_router(execute_router)
     app.include_router(env_router)
     app.include_router(config_router)
+    app.include_router(export_router)
 
     # Load plugins
     pm = PluginManager()

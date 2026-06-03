@@ -4,6 +4,13 @@
 
 ### Added
 
+- **F4: 导出为独立 HTML — 不依赖 Python 后端的可分享 Walkthrough**
+  - `walkabout/export.py`: 将 trace JSON 打包为自包含 HTML（嵌入 trace 数据 + 样式 + 渲染脚本，CDN 加载 highlight.js/marked/MathJax 实现语法高亮/Markdown/数学公式）。
+  - `POST /api/export`: 后端 API 一键执行 note → 生成 HTML → 返回下载（`Content-Disposition: attachment`）。
+  - 前端工具栏 ↓ Export 按钮：Run 之后一键下载独立 HTML，支持离线浏览。
+  - standalone viewer 功能：步骤导航（←/→）、步过（Shift+←/→）、原始模式切换、文件选择、变量面板（可拖动）、行号跳转、Latex 公式渲染。
+  - 影响文件: `walkabout/export.py`, `walkabout/api/export.py`, `walkabout/app.py`, `frontend/src/api.js`, `frontend/src/pages/EditorPage.jsx`, `frontend/src/index.css`
+
 - **Zen 模式 — 隐藏侧边栏 + 工具栏，纯净编辑体验**
   - 工具栏 ⊞ 按钮切换 Zen 模式：隐藏 FileBrowser 侧边栏、工具栏、安装栏，仅保留编辑器/查看器区域。
   - 自动触发 Fullscreen API；ESC 或浮动按钮退出 Zen 模式。
