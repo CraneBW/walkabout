@@ -146,9 +146,10 @@
 - 新类型（color、keybinding、array）需同时改 schema 和 React 渲染逻辑。
 - 建议: 将控件渲染抽象为 `renderControl(type, schema, value, onChange)` 工厂函数。
 
-### T5. pywebview 与 uvicorn 线程竞争
-- `__main__.py` 中 uvicorn 在 daemon 线程启动，pywebview 在主线程。窗口关闭时 daemon 线程被强制终止，无优雅关闭。
-- 建议: 使用 `signal` 或 `atexit` 注册清理逻辑，或改用 `multiprocessing` 进程隔离。
+### T5. pywebview 与 uvicorn 线程竞争（部分修复）
+- **已修复**: `open_window()` 不再启动第二个 uvicorn 服务（#6ae2f2c），`__main__.py` 中使用预创建 SO_REUSEADDR socket 消除 TIME-WAIT 导致的端口冲突（#8c4f3b1）。
+- **遗留**: 窗口关闭时 daemon 线程被强制终止，无优雅关闭。
+- **建议**: 使用 `signal` 或 `atexit` 注册清理逻辑，或改用 `multiprocessing` 进程隔离。
 
 ### T6. 前端构建产物包含在 Python 包中增大体积
 - `frontend/dist/` ~1.3MB JS + ~10KB CSS 被打包进 wheel。
