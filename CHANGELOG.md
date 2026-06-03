@@ -10,11 +10,29 @@
   - 影响文件: `walkabout/api/notes.py`, `frontend/src/pages/EditorPage.jsx`
 
 - **Monaco Editor 本地打包替代 CDN 加载**
-  - 将 `monaco-editor` npm 包直接打包进前端构建产物，消除每次打开文件时从 CDN 下载 ~30MB 的延迟。
-  - 前端构建体积从 1.3MB 增至 ~5MB（含 code splitting 的 worker 文件），但编辑器的加载变为即时。
-  - 影响文件: `frontend/src/components/Editor.jsx`, `frontend/package.json`
+  - 将 `monaco-editor` 通过动态 `import()` 进行代码分割：主 chunk 保持 1.3MB 实现快速初始渲染，编辑器 chunk（~3.8MB）在打开文件时才按需加载。
+  - 消除每次打开文件时从 CDN 下载 ~30MB 的延迟，同时支持离线编辑。
+  - 影响文件: `frontend/src/components/Editor.jsx`, `frontend/package.json`, `frontend/vite.config.js`
+
+- **变量面板移至右上角**
+  - 将 TraceViewer 的 env 面板从默认左下角移至右上角，拖拽改用右边缘定位 `(rx, y)`。
+  - 影响文件: `frontend/src/TraceViewer.jsx`, `frontend/src/index.css`
+
+- **Demo 新增数学公式渲染测试**
+  - `demo_walkthrough.py` 新增 `math_formulas()` 模块，测试 MathJax 渲染行内公式（$...$）和块级公式（$$...$$）。执行: 141 步 / 38 个渲染。
+  - 影响文件: `walkabout/examples/demo_walkthrough.py`
 
 ### Fixed
+
+- **MathJax 公式在 TraceViewer 中不渲染**
+  - MathJax CDN 异步加载，动态渲染的 TraceViewer 内容 MathJax 无感知。`MathJax.typeset()` 调用时序不可靠。
+  - 修复: 在 `index.html` 中添加 `MutationObserver` 监听 `#root` 的 DOM 变化自动触发 `typesetPromise()`；附加 30 秒轮询兜底。
+  - 影响文件: `frontend/index.html`
+
+- **Monaco Editor 静态导入导致白屏**
+  - 上一轮修复中将 `monaco-editor` 静态打包进主 chunk（5MB），阻塞初始渲染。
+  - 修复: 改用 `Promise.all([import('monaco-editor'), import('@monaco-editor/react')])` 动态加载，Vite 自动代码分割，主 chunk 回到 1.3MB。
+  - 影响文件: `frontend/src/components/Editor.jsx`
 
 - **点击 Run 后 TraceViewer 显示 "No trace path provided"**
   - EditorPage 执行 `executeNote()` 后得到 `trace_url` 但只保存在 React state 中，TraceViewer 从 URL query params 读取 `trace` 参数，两者未连接。
@@ -51,5 +69,5 @@
 ### Added
 
 - **功能演示脚本** (`walkabout/examples/demo_walkthrough.py`)
-  - 涵盖: Markdown 渲染、变量追踪 (`@inspect`)、字符串/集合操作、`@stepover`、嵌套函数调用、shell 命令、链接引用、条件分支、循环、边界情况（大整数、浮点精度、嵌套 dict、列表推导式等）。
-  - 也可作为回归测试用例。执行: 135 步 / 32 个渲染。
+  - 涵盖: Markdown 渲染、变量追踪 (`@inspect`)、字符串/集合操作、`@stepover`、嵌套函数调用、shell 命令、链接引用、条件分支、循环、边界情况（大整数、浮点精度、嵌套 dict、列表推导式等）、MathJax 数学公式渲染。
+  - 也可作为回归测试用例。执行: 141 步 / 38 个渲染。

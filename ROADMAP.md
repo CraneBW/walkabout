@@ -13,6 +13,8 @@
 - [x] **可配置 Python 解释器** — settings.json 中 `python.path` 或自动检测 workspace venv
 - [x] **插件系统** — `WalkaboutPlugin` 基类 + `PluginManager` 自动发现，on_startup/on_pre_execute/on_post_execute 钩子
 - [x] **Trace 持久化** — 重启后自动恢复上次执行的 trace（`read_note` 检查磁盘中已有 trace JSON）
+- [x] **Monaco 本地打包** — 动态 `import()` 代码分割，消除 CDN 依赖，编辑器即时加载
+- [x] **MathJax 数学公式** — `MutationObserver` + 轮询兜底，TraceViewer 动态渲染公式
 
 ---
 
@@ -32,7 +34,7 @@
 ### B3. Monaco Editor CDN 依赖（已修复）
 - **文件**: `frontend/src/components/Editor.jsx`
 - **现象**（已修复）: `@monaco-editor/react` 默认从 CDN 加载 Monaco 本体（~30MB），离线环境无法编辑。
-- **修复**: 安装 `monaco-editor` npm 包，通过 `loader.config({ monaco })` 使用本地 bundle。前端构建体积从 1.3MB 增至 ~5MB，但编辑器加载变为即时，消除网络依赖。
+- **修复**: 安装 `monaco-editor` npm 包，通过动态 `Promise.all([import('monaco-editor'), import('@monaco-editor/react')])` 加载。Vite 自动代码分割：主 chunk 1.3MB 快速渲染，编辑器 chunk ~3.8MB 按需加载。消除 CDN 依赖同时避免白屏。
 
 ### B4. 子进程执行时 WALKABOUT_HOME 未显式传递给 runner
 - **文件**: `walkabout/api/execute.py`
@@ -171,8 +173,8 @@
 - **建议**: 使用 `signal` 或 `atexit` 注册清理逻辑，或改用 `multiprocessing` 进程隔离。
 
 ### T6. 前端构建产物包含在 Python 包中增大体积
-- `frontend/dist/` ~1.3MB JS + ~10KB CSS 被打包进 wheel。
-- 当前可接受，但如果 Monaco 本体也打包进 dist 会膨胀到 ~30MB。
+- `frontend/dist/` ~5MB JS + ~160KB CSS（含 Monaco 本地 bundle）被打包进 wheel。
+- 相比从 CDN 加载 ~30MB，本地 bundle 通过代码分割和 tree-shaking 缩减了体积。
 - 建议: 发布时可选是否含前端（`walkabout-core` vs `walkabout`），或首次启动时自动下载前端。
 
 ---
