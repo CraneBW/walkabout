@@ -128,7 +128,7 @@ export default function SettingsPage() {
       <header className="toolbar">
         <span className="logo">⚙ Settings</span>
         <span className="toolbar-actions">
-          <button onClick={() => navigate('/')} className="back-btn" title="Close settings (ESC)">← Back</button>
+          <button onClick={() => { if (window.history.length > 1) navigate(-1); else navigate('/'); }} className="back-btn" title="Close settings (ESC)">← Back</button>
           <button onClick={() => setMode('gui')} className={mode === 'gui' ? 'tab-active' : ''}>
             🖱 GUI
           </button>

@@ -630,15 +630,17 @@ img { max-width: 100%; }
   margin-left: 8px;
 }
 .reset-btn:hover { background: #5a1d1d; }
-.gear-link {
+.toolbar .gear-btn {
+  background: none;
+  border: none;
   color: #888;
-  text-decoration: none;
   font-size: 18px;
   margin-right: 4px;
   padding: 2px 6px;
   border-radius: 3px;
+  cursor: pointer;
 }
-.gear-link:hover { background: #3c3c3c; color: #ccc; }
+.toolbar .gear-btn:hover { background: #3c3c3c; color: #ccc; }
 
 /* === Zen mode === */
 .zen-mode .toolbar { display: none; }

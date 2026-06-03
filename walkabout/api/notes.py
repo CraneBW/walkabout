@@ -38,7 +38,7 @@ def _ensure_package_init(path: Path) -> None:
     for parent in reversed(path.parents):
         if parent == path or parent == path.anchor:
             continue
-        if not str(parent) + "/".startswith(notes_root):
+        if not (str(parent) + "/").startswith(notes_root):
             continue
         init = parent / "__init__.py"
         if not init.exists():

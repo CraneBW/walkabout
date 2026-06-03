@@ -77,12 +77,17 @@ export default function EditorPage() {
 
   useEffect(() => { refreshFiles(); }, [refreshFiles]);
 
-  // Restore selected file from URL on mount (survives settings → back navigation)
+  // Restore selected file from URL or sessionStorage on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const fileParam = params.get('file');
     if (fileParam) {
       selectNote(fileParam);
+    } else {
+      const lastFile = sessionStorage.getItem('walkabout_last_file');
+      if (lastFile) {
+        selectNote(lastFile);
+      }
     }
   }, []);
 
@@ -101,6 +106,7 @@ export default function EditorPage() {
         setTraceUrl(null);
       }
       navigate('?file=' + encodeURIComponent(path), { replace: true });
+      sessionStorage.setItem('walkabout_last_file', path);
       setTab('edit');
     } catch (e) {
       setError('Failed to load: ' + path);
@@ -222,7 +228,7 @@ export default function EditorPage() {
               <button onClick={toggleZen} title={zenMode ? 'Exit zen mode' : 'Zen mode (hide chrome)'} className="fs-btn">
                 {zenMode ? '◻' : '⊞'}
               </button>
-              <a href="/settings" title="Settings" className="gear-link">⚙</a>
+              <button onClick={() => navigate('/settings')} title="Settings" className="gear-btn">⚙</button>
               <button onClick={() => setShowInstall(!showInstall)} title="Install packages" className="pkg-btn">
                 📦
               </button>
