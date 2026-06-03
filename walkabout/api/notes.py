@@ -32,11 +32,20 @@ def _resolve(relpath: str) -> Path:
     return p
 
 
+_SKIP_DIRS = frozenset({
+    "__pycache__", ".venv", ".git", ".svn", ".hg",
+    ".mypy_cache", ".pytest_cache", ".ruff_cache",
+    "node_modules", ".tox", ".egg-info",
+})
+
+
 @router.get("")
 def list_notes() -> list[NoteInfo]:
     ensure_dirs()
     notes = []
-    for root, _, files in os.walk(NOTES_DIR):
+    for root, dirs, files in os.walk(NOTES_DIR):
+        # Skip irrelevant directories in-place so os.walk doesn't descend
+        dirs[:] = [d for d in dirs if d not in _SKIP_DIRS]
         for f in files:
             if f.endswith(".py"):
                 full = Path(root) / f

@@ -9,6 +9,9 @@ def open_window(url: str = "http://localhost:8000"):
     running server.
     """
     # Try pywebview first (native window, no external browser)
+    # Note: catch Exception (not just ImportError) because pywebview's qtpy
+    # dependency raises QtBindingsNotFoundError when qtpy is installed but
+    # no Qt backend (PyQt5/PySide6) is available.
     try:
         import webview
         webview.create_window(
@@ -20,7 +23,7 @@ def open_window(url: str = "http://localhost:8000"):
         )
         webview.start()
         return True
-    except ImportError:
+    except Exception:
         pass
 
     # Try PyQt5/PySide6 as fallback

@@ -4,6 +4,21 @@
 
 ### Fixed
 
+- **点击 Run 后 TraceViewer 显示 "No trace path provided"**
+  - EditorPage 执行 `executeNote()` 后得到 `trace_url` 但只保存在 React state 中，TraceViewer 从 URL query params 读取 `trace` 参数，两者未连接。
+  - 修复: EditorPage 导入 `useNavigate`，执行成功后调用 `navigate('?trace=...')` 更新 URL；切换/删除文件时清除 URL params。
+  - 影响文件: `frontend/src/pages/EditorPage.jsx`
+
+- **qtpy 安装但无 Qt 后端导致 pywebview 崩溃**
+  - `pywebview` 内部导入 `qtpy`，`qtpy` 找不到 PyQt5/PySide6 时抛出 `QtBindingsNotFoundError`（非 `ImportError`），原 `except ImportError` 无法捕获，导致原生窗口初始化失败。
+  - 修复: 将 pywebview 块的 `except ImportError` 扩大为 `except Exception`，使其正常回退到浏览器模式。
+  - 影响文件: `walkabout/webview.py`
+
+- **list_notes() 中 os.walk 遍历无关目录**
+  - `os.walk(NOTES_DIR)` 递归进入 `__pycache__`、`.venv` 等目录，随 notes 目录增长性能会越来越差。
+  - 修复: 在 `os.walk` 中通过修改 `dirs[:]` 跳过常见非源码目录。
+  - 影响文件: `walkabout/api/notes.py`
+
 - **端口冲突导致 `[Errno 98] address already in use`**
   - `webview.py`: 移除 `open_window()` 中内嵌的 uvicorn 服务启动逻辑（#2a0f28e），避免与 `__main__.py` 的服务器线程争夺端口。
   - `__main__.py`: 预创建 TCP socket 并设置 `SO_REUSEADDR` 选项（#168f965），消除 TIME-WAIT 状态导致的端口绑定失败。重构服务器启动流程，统一由 `_run_server()` 管理，消除重复的 `uvicorn.run()` 调用。

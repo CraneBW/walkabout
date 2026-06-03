@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import FileBrowser from '../components/FileBrowser';
 import Editor from '../components/Editor';
 import TraceViewer from '../TraceViewer';
@@ -6,6 +7,7 @@ import { listNotes, getNote, saveNote, createNote, deleteNote, executeNote } fro
 import { getEnvInfo, installPackages } from '../api';
 
 export default function EditorPage() {
+  const navigate = useNavigate();
   const [files, setFiles] = useState([]);
   const [selectedPath, setSelectedPath] = useState(null);
   const [content, setContent] = useState('');
@@ -45,6 +47,8 @@ export default function EditorPage() {
       setContent(data.content);
       setDirty(false);
       setExecResult(null);
+      setTraceUrl(null);
+      navigate('');
       setTab('edit');
     } catch (e) {
       setError('Failed to load: ' + path);
@@ -80,6 +84,7 @@ export default function EditorPage() {
       setExecResult(result);
       if (result.status === 'ok') {
         setTraceUrl(result.trace_url);
+        navigate('?trace=' + encodeURIComponent(result.trace_url));
         setTab('view');  // Switch to embedded viewer
       }
     } catch (e) {
@@ -121,6 +126,7 @@ export default function EditorPage() {
         setContent('');
         setTab('edit');
         setTraceUrl(null);
+        navigate('');
       }
       await refreshFiles();
     } catch (e) {

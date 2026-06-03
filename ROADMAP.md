@@ -65,6 +65,18 @@
 - **根因**: 列表推导式创建了隐式函数作用域，`local_trace_func` 在该作用域内无法访问外层函数的 `squares` 变量，直到推导完成后才可见。
 - **修复方向**: 检测列表/集合/字典推导式的代码行，在推导式作用域内跳过变量捕获，直到推导完成后再捕获一次。
 
+### B10. TraceViewer "No trace path provided"（已修复）
+- **文件**: `frontend/src/pages/EditorPage.jsx`, `frontend/src/TraceViewer.jsx`
+- **现象**: 点击 Run 后回放面板显示 "No trace path provided"，无法查看执行结果。
+- **根因**: EditorPage 将 `trace_url` 保存在 React state 中，但 TraceViewer 从 URL query params (`?trace=...`) 读取路径。两者之间无连接，URL 从未被更新。
+- **修复**: EditorPage 导入 `useNavigate`，执行成功后调用 `navigate('?trace=' + encodeURIComponent(trace_url))`；切换/删除文件时清除 URL params。
+
+### B11. qtpy 无后端导致原生窗口崩溃（已修复）
+- **文件**: `walkabout/webview.py`
+- **现象**: pywebview 的 `import webview` 内部触发 `qtpy.QtBindingsNotFoundError`，该异常非 `ImportError`，未被 `except ImportError` 捕获，导致 GUI 初始化失败。
+- **根因**: `qtpy` 已安装但 PyQt5/PySide6 未安装，pywebview 通过 qtpy 检测 Qt 时抛出绑定错误。
+- **修复**: 将 `except ImportError` 扩大为 `except Exception`，捕获所有初始化异常后自动回退到浏览器模式。
+
 ---
 
 ## 未来工作 (Future Work)
