@@ -1,3 +1,4 @@
+from __future__ import annotations
 import io
 import argparse
 import importlib
@@ -5,7 +6,6 @@ import inspect
 import sys
 import json
 import traceback
-from __future__ import annotations
 try:
     import torch
 except ImportError:
