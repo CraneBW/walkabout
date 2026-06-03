@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Base class for Walkabout plugins."""
 from abc import ABC
 
