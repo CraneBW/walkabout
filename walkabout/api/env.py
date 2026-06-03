@@ -1,4 +1,5 @@
 """Environment management — uv-based Python package installation."""
+from __future__ import annotations
 import subprocess, os, shutil, json
 from pathlib import Path
 from fastapi import APIRouter, HTTPException
