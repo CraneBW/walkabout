@@ -23,8 +23,9 @@ def main():
 
 
     # Setup paths: workspace first, then core engine
-    core_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    walkabout_root = os.path.dirname(core_dir)
+    runner_dir = os.path.dirname(os.path.abspath(__file__))
+    core_dir = os.path.join(runner_dir, 'core')  # walkabout/core/ — has execute_util, file_util, execute
+    walkabout_root = os.path.join(runner_dir, '..')  # project root — has walkabout package
     sys.path.insert(0, args.workspace)
     sys.path.insert(0, core_dir)  # for execute_util, file_util, etc.
     sys.path.insert(0, walkabout_root)  # for walkabout.core
