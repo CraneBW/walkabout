@@ -151,6 +151,7 @@ export default function EditorPage() {
               <button onClick={handleRun} disabled={executing} className="run-btn">
                 {executing ? '⏳' : '▶'} Run
               </button>
+              <a href="/settings" title="Settings" className="gear-link">⚙</a>
               <button onClick={() => setShowInstall(!showInstall)} title="Install packages" className="pkg-btn">
                 📦
               </button>

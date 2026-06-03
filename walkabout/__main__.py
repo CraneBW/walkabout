@@ -1,10 +1,18 @@
-"""Entry point: walkabout or python -m walkabout"""
-import sys, os, threading, time
+"""Entry point: walkabout or python -m walkabout
+
+Launches as a standalone desktop app with embedded webview.
+No external browser required.
+"""
+import sys, os, threading, time, signal
 import uvicorn
 
+
 def main():
-    from walkabout.config import NOTES_DIR, TRACES_DIR, FILES_DIR
+    from walkabout.config import NOTES_DIR, TRACES_DIR, FILES_DIR, load_settings
     from walkabout.plugins.manager import PluginManager
+
+    settings = load_settings()
+    port = settings.get("window", {}).get("port", 8000)
 
     print(" Walkabout — Interactive Code Walkthrough Editor")
 
@@ -15,7 +23,7 @@ def main():
         print(f"   Plugins: {', '.join(p.name for p in pm.plugins)}")
 
     print(f"   Workspace: {NOTES_DIR}")
-    print(f"   Traces:    {TRACES_DIR}")
+    print(f"   Settings:  {settings.get('_file', '~/.walkabout/settings.json')}")
     print()
 
     # Check frontend
@@ -28,23 +36,32 @@ def main():
 
     from walkabout.app import create_app
     app = create_app()
+    url = f"http://localhost:{port}"
 
-    # Try embedded window, fall back to browser
-    url = "http://localhost:8000"
+    # 1st choice: pywebview (native window, no external browser)
     try:
         from walkabout.webview import open_window
-        # Run uvicorn in a thread, open webview in main thread
+
         def serve():
-            uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
-        t = threading.Thread(target=serve, daemon=True)
-        t.start()
+            uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")
+
+        server_thread = threading.Thread(target=serve, daemon=True)
+        server_thread.start()
         time.sleep(1.5)
+        print(f"   Launching native window...")
         open_window(url)
-    except Exception:
-        print(f"  Opening {url} ...")
-        import webbrowser
-        webbrowser.open(url)
-        uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
+        return
+    except ImportError:
+        pass
+    except Exception as e:
+        print(f"   pywebview failed ({e}), trying alternatives...")
+
+    # 2nd choice: system browser with localhost
+    print(f"   Opening {url} in browser...")
+    import webbrowser
+    webbrowser.open(url)
+    uvicorn.run(app, host="127.0.0.1", port=port, log_level="info")
+
 
 if __name__ == "__main__":
     main()
