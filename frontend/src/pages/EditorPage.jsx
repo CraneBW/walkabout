@@ -47,7 +47,11 @@ export default function EditorPage() {
       setContent(data.content);
       setDirty(false);
       setExecResult(null);
-      setTraceUrl(null);
+      if (data.trace_url) {
+        setTraceUrl(data.trace_url);
+      } else {
+        setTraceUrl(null);
+      }
       navigate('');
       setTab('edit');
     } catch (e) {
@@ -146,7 +150,10 @@ export default function EditorPage() {
                 ✏️ Edit
               </button>
               {traceUrl && (
-                <button onClick={() => setTab('view')} className={tab === 'view' ? 'tab-active' : ''}>
+                <button onClick={() => {
+                  navigate('?trace=' + encodeURIComponent(traceUrl));
+                  setTab('view');
+                }} className={tab === 'view' ? 'tab-active' : ''}>
                   👁 View
                 </button>
               )}

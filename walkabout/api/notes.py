@@ -1,9 +1,10 @@
 """Notes CRUD API — list, read, write, create, delete walkthrough scripts."""
 import os
 from pathlib import Path
+from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from ..config import NOTES_DIR, ensure_dirs
+from ..config import NOTES_DIR, TRACES_DIR, ensure_dirs
 
 router = APIRouter(prefix="/api/notes", tags=["notes"])
 
@@ -16,6 +17,7 @@ class NoteInfo(BaseModel):
 class NoteContent(BaseModel):
     path: str
     content: str
+    trace_url: Optional[str] = None  # Set if a previous trace exists on disk
 
 class CreateNote(BaseModel):
     name: str
@@ -63,7 +65,13 @@ def read_note(path: str) -> NoteContent:
     full = _resolve(path)
     if not full.exists():
         raise HTTPException(404, f"Note not found: {path}")
-    return NoteContent(path=path, content=full.read_text(encoding="utf-8"))
+
+    # Check if a trace already exists for this note (persist across restarts)
+    module_name = path.replace("/", ".").replace(".py", "")
+    trace_file = TRACES_DIR / f"{module_name}.json"
+    trace_url = f"/api/traces/{module_name}.json" if trace_file.exists() else None
+
+    return NoteContent(path=path, content=full.read_text(encoding="utf-8"), trace_url=trace_url)
 
 
 @router.put("/{path:path}")

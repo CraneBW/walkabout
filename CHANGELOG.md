@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Trace 持久化 — 重启后保留上次执行的 trace**
+  - 后端 `read_note()` 返回 `trace_url` 字段：打开文件时检查 `~/.walkabout/traces/` 下是否有对应的 trace JSON，若存在则自动恢复。
+  - 前端 EditorPage 根据返回的 `trace_url` 恢复状态，无需重新 Run 即可查看上次执行结果。
+  - 影响文件: `walkabout/api/notes.py`, `frontend/src/pages/EditorPage.jsx`
+
+- **Monaco Editor 本地打包替代 CDN 加载**
+  - 将 `monaco-editor` npm 包直接打包进前端构建产物，消除每次打开文件时从 CDN 下载 ~30MB 的延迟。
+  - 前端构建体积从 1.3MB 增至 ~5MB（含 code splitting 的 worker 文件），但编辑器的加载变为即时。
+  - 影响文件: `frontend/src/components/Editor.jsx`, `frontend/package.json`
+
 ### Fixed
 
 - **点击 Run 后 TraceViewer 显示 "No trace path provided"**

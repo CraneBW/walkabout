@@ -12,6 +12,7 @@
 - [x] **uv 环境管理** — 工具栏一键安装包，自动创建 `~/.walkabout/.venv`
 - [x] **可配置 Python 解释器** — settings.json 中 `python.path` 或自动检测 workspace venv
 - [x] **插件系统** — `WalkaboutPlugin` 基类 + `PluginManager` 自动发现，on_startup/on_pre_execute/on_post_execute 钩子
+- [x] **Trace 持久化** — 重启后自动恢复上次执行的 trace（`read_note` 检查磁盘中已有 trace JSON）
 
 ---
 
@@ -28,10 +29,10 @@
 - **现象**: `is_arxiv_link()` 在网络不可达时抛异常，且首次惰性导入有性能开销。
 - **修复方向**: 给网络调用加 try/except + 超时（3秒）。
 
-### B3. Monaco Editor CDN 依赖
+### B3. Monaco Editor CDN 依赖（已修复）
 - **文件**: `frontend/src/components/Editor.jsx`
-- **现象**: `@monaco-editor/react` 默认从 CDN 加载 Monaco 本体（~30MB），离线环境无法编辑。
-- **修复方向**: 配置 Monaco 本地打包 `import * as monaco from 'monaco-editor'`，或者切换到 CodeMirror ~500KB。
+- **现象**（已修复）: `@monaco-editor/react` 默认从 CDN 加载 Monaco 本体（~30MB），离线环境无法编辑。
+- **修复**: 安装 `monaco-editor` npm 包，通过 `loader.config({ monaco })` 使用本地 bundle。前端构建体积从 1.3MB 增至 ~5MB，但编辑器加载变为即时，消除网络依赖。
 
 ### B4. 子进程执行时 WALKABOUT_HOME 未显式传递给 runner
 - **文件**: `walkabout/api/execute.py`
