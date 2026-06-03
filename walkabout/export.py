@@ -11,7 +11,7 @@ from typing import Any, Optional
 def generate_html(
     trace: dict[str, Any],
     title: str = "Walkthrough",
-    strip_source: bool = True,
+    strip_source: bool = False,
 ) -> str:
     """Generate a self-contained HTML file from a trace dict.
 
