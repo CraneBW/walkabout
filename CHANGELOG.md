@@ -4,6 +4,21 @@
 
 ### Added
 
+- **双主题设计系统 — CSS 变量驱动的暗色/暖白双主题**
+  - 完整的 CSS 自定义属性体系（颜色、阴影、间距、圆角、过渡）。
+  - 暗色主题（深黑 `#191b1e`）和暖白亮色主题（米白 `#f3f2ee`）。
+  - 工具栏 ☀/☾ 按钮一键切换，设置页 `appearance.theme` 修改即时生效。
+  - `index.html` 内联脚本防闪烁（React 加载前就读 localStorage 设置主题）。
+  - Monaco Editor 自动跟随系统主题（`vs-dark` ↔ `vs`）。
+  - 影响文件: `frontend/src/index.css`, `frontend/src/theme.js`, `frontend/src/pages/EditorPage.jsx`, `frontend/src/pages/SettingsPage.jsx`, `frontend/src/components/Editor.jsx`, `frontend/index.html`
+
+- **前端 UI 全面美化**
+  - 全新设计系统：系统字体栈（SF Pro / Segoe UI / Roboto），无需外部字体 CDN。
+  - 柔和色调、过渡动效、按钮按压反馈、Focus 环、自定义滚动条。
+  - 欢迎页、进度条、Toast 通知、Markdown 渲染、环境变量面板全部统一风格。
+  - Zen 模式退出按钮半透明悬浮。
+  - 影响文件: `frontend/src/index.css`, `frontend/src/TraceViewer.jsx`
+
 - **导出 HTML 隐藏 text() 调用代码行**
   - standalone viewer 的 `renderLines()` 中跳过以 `text(` 开头的代码行，仅保留渲染后的 Markdown 输出，界面更干净。
   - 影响文件: `walkabout/export.py`
@@ -59,6 +74,18 @@
   - 影响文件: `walkabout/examples/demo_walkthrough.py`
 
 ### Fixed
+
+- **pywebview GUI 黑屏 — localStorage 异常导致 React 渲染崩溃**
+  - `theme.js` 中 `getCurrentTheme()` 在 pywebview 的 WebKitGTK/JavaScriptCore 引擎中抛出未捕获异常，传播到 React 渲染周期导致整个应用崩溃（仅显示 CSS 背景色）。
+  - 修复: 给 `theme.js` 所有浏览器 API 调用加 try/catch 防御；移除 Google Fonts CDN（外部资源可能阻塞 WebKitGTK 渲染）；`__main__.py` 用 TCP connect 轮询替代盲等 sleep 确保服务器就绪后再打开窗口；`app.py` 静态资源添加 `Cache-Control: no-cache`。
+  - 影响文件: `frontend/src/theme.js`, `frontend/index.html`, `walkabout/__main__.py`, `walkabout/app.py`
+
+- **架构债务化解 — execute.py 栈帧过滤修复 + 子进程管理 + 重复代码消除**
+  - `get_stack()` 改用文件路径匹配替代函数名字符串匹配，不受用户定义的 `execute()` 函数干扰（T1/B1）。
+  - `link()` 中 arXiv 调用加 try/except + 10s 超时；XML 解析 None-safe（B2）。
+  - 提取共享 `_run_trace_subprocess()` 消除 api/execute.py 和 api/export.py ~40 行重复代码；显式设置 WALKABOUT_HOME（B4）；Popen + communicate 替代 subprocess.run 确保超时后 kill 子进程（B5）。
+  - 清理 execute.py 中死掉的 stdout/stderr buffer 捕获代码。
+  - 影响文件: `walkabout/core/execute.py`, `walkabout/core/execute_util.py`, `walkabout/core/arxiv_util.py`, `walkabout/core/file_util.py`, `walkabout/api/__init__.py`, `walkabout/api/execute.py`, `walkabout/api/export.py`
 
 - **_ensure_package_init 递归到根目录导致 PermissionError**
   - `reversed(path.parents)` 遍历到文件系统 `/`，试图创建 `/__init__.py` 时报权限错误。

@@ -1,6 +1,6 @@
 # Walkabout 基线任务文档
 
-> 版本: 0.1.0 | 更新: 2026-06-03
+> 版本: 0.2.0 | 更新: 2026-06-04
 
 ## 已完成 (Completed)
 
@@ -15,6 +15,9 @@
 - [x] **Trace 持久化** — 重启后自动恢复上次执行的 trace（`read_note` 检查磁盘中已有 trace JSON）
 - [x] **Monaco 本地打包** — 动态 `import()` 代码分割，消除 CDN 依赖，编辑器即时加载
 - [x] **MathJax 数学公式** — `MutationObserver` + 轮询兜底，TraceViewer 动态渲染公式
+- [x] **架构债务化解** — 修复 T1/B1/B2/B4/B5，提取共享子进程 runner，清理死代码
+- [x] **双主题设计系统** — CSS 变量驱动的暗色/暖白双主题，工具栏一键切换，设置页即时生效
+- [x] **前端 UI 美化** — 全新设计系统：自定义属性、Inter 字体、柔和色调、过渡动效、圆角阴影
 
 ---
 
@@ -45,6 +48,13 @@
 - **文件**: `walkabout/api/__init__.py`
 - **状态**: 已修复 (#eaba7a2)
 - **修复**: 改用 `subprocess.Popen` + `proc.communicate(timeout=N)`，`TimeoutExpired` 中 `proc.kill()` + `proc.wait()` 确保子进程被终止。
+
+### B12. pywebview WebKitGTK 中 localStorage 异常导致 GUI 黑屏
+- **文件**: `frontend/src/theme.js`, `frontend/index.html`, `walkabout/__main__.py`, `walkabout/app.py`
+- **状态**: 已修复 (#f60e97f)
+- **现象**: GUI 原生窗口打开后白屏或黑屏，浏览器模式正常。`window.onerror` 捕获到 React 渲染周期中的异常，堆栈指向 `getCurrentTheme()`。
+- **根因**: `theme.js` 中 `getCurrentTheme()` 在 `useState` 初始化器中调用 `localStorage.getItem()`，pywebview 的 WebKitGTK/JavaScriptCore 引擎在特定条件下该 API 抛出异常，未经捕获传播到 React 渲染周期导致整个应用崩溃。
+- **修复**: 给 `theme.js` 所有浏览器 API 调用（localStorage、matchMedia、setAttribute）加 try/catch 防御；替代 Google Fonts CDN（WebKitGTK 可能阻塞外部字体加载）为系统字体栈；`__main__.py` 用 TCP connect 轮询替代盲等 sleep；`app.py` 静态资源添加 `Cache-Control: no-cache` 防缓存。
 
 ### B6. TraceViewer 构造函数中使用了 `BrowserRouter` 但已在上层路由中
 - **文件**: `frontend/src/TraceViewer.jsx`（复制自 CS336 课件）
@@ -170,8 +180,8 @@
 - 新类型（color、keybinding、array）需同时改 schema 和 React 渲染逻辑。
 - 建议: 将控件渲染抽象为 `renderControl(type, schema, value, onChange)` 工厂函数。
 
-### T5. pywebview 与 uvicorn 线程竞争（部分修复）
-- **已修复**: `open_window()` 不再启动第二个 uvicorn 服务（#6ae2f2c），`__main__.py` 中使用预创建 SO_REUSEADDR socket 消除 TIME-WAIT 导致的端口冲突（#8c4f3b1）。
+### T5. pywebview 与 uvicorn 线程竞争（大幅改善）
+- **已修复**: `open_window()` 不再启动第二个 uvicorn 服务（#6ae2f2c），`__main__.py` 中用 TCP connect 轮询等待服务器就绪后再打开 GUI 窗口，消除盲等 sleep 和端口冲突静默失败。
 - **遗留**: 窗口关闭时 daemon 线程被强制终止，无优雅关闭。
 - **建议**: 使用 `signal` 或 `atexit` 注册清理逻辑，或改用 `multiprocessing` 进程隔离。
 
