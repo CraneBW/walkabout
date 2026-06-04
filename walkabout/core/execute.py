@@ -246,7 +246,7 @@ def execute(module_name: str, inspect_all_variables: bool) -> Trace:
     module.main()
     sys.settrace(None)
 
-    files = {relativize(path): open(path).read() for path in visible_paths}
+    files = {relativize(path): open(path, encoding="utf-8").read() for path in visible_paths}
     trace = Trace(steps=steps, files=files)
     return trace
 
@@ -266,5 +266,5 @@ if __name__ == "__main__":
         print(f"{len(trace.steps)} steps")
         output_path = os.path.join(args.output_path, f"{module}.json")
         print(f"Saving trace to {output_path}...")
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(asdict(trace), f, indent=2)

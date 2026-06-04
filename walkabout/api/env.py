@@ -24,10 +24,17 @@ def _find_uv() -> Optional[str]:
 
 
 def _get_venv_python() -> Optional[str]:
+    if sys.platform == "win32":
+        exe_names = ["python.exe", "python3.exe"]
+        venv_dir_name = "Scripts"
+    else:
+        exe_names = ["python3", "python"]
+        venv_dir_name = "bin"
     for base in [NOTES_DIR, Path.home() / ".walkabout"]:
-        venv = base / ".venv" / "bin" / "python3"
-        if venv.exists():
-            return str(venv)
+        for name in exe_names:
+            venv = base / ".venv" / venv_dir_name / name
+            if venv.exists():
+                return str(venv)
     return None
 
 
@@ -76,7 +83,10 @@ def install_packages(req: InstallRequest) -> dict:
                     [uv, "venv", str(cwd / ".venv")],
                     capture_output=True, text=True, timeout=30, cwd=str(cwd)
                 )
-                new_venv = str(cwd / ".venv" / "bin" / "python3")
+                if sys.platform == "win32":
+                    new_venv = str(cwd / ".venv" / "Scripts" / "python.exe")
+                else:
+                    new_venv = str(cwd / ".venv" / "bin" / "python3")
                 cmd.extend(["--python", new_venv])
         else:
             cmd = [python, "-m", "pip", "install"] + packages

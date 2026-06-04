@@ -29,7 +29,7 @@ def arxiv_reference(url: str, **kwargs) -> Reference:
 
     metadata_url = f"http://export.arxiv.org/api/query?id_list={paper_id}"
     metadata_path = cached(metadata_url, "arxiv")
-    with open(metadata_path, "r") as f:
+    with open(metadata_path, "r", encoding="utf-8") as f:
         contents = f.read()
     root = ET.fromstring(contents)
 

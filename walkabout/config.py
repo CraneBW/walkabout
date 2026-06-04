@@ -94,7 +94,7 @@ def load_settings() -> dict:
     defaults = get_defaults()
     user = {}
     if SETTINGS_FILE.exists():
-        with open(SETTINGS_FILE) as f:
+        with open(SETTINGS_FILE, encoding="utf-8") as f:
             user = json.load(f)
     return _deep_merge(defaults, user)
 
@@ -104,7 +104,7 @@ def save_settings(s: dict):
     ensure_dirs()
     defaults = get_defaults()
     overrides = _diff_settings(defaults, s)
-    with open(SETTINGS_FILE, "w") as f:
+    with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
         json.dump(overrides, f, indent=2, ensure_ascii=False)
 
 
@@ -122,7 +122,7 @@ def set_setting(key: str, value: Any):
     # Also write to user overrides
     user = {}
     if SETTINGS_FILE.exists():
-        with open(SETTINGS_FILE) as f:
+        with open(SETTINGS_FILE, encoding="utf-8") as f:
             user = json.load(f)
     keys = key.split(".")
     d = user
@@ -130,6 +130,21 @@ def set_setting(key: str, value: Any):
         d = d.setdefault(k, {})
     d[keys[-1]] = value
     save_settings(_deep_merge(get_defaults(), user))
+
+
+def _get_venv_python(venv_dir: Path) -> str:
+    """Return the Python executable path inside a virtual environment."""
+    if sys.platform == "win32":
+        for name in ["python.exe", "python3.exe"]:
+            p = venv_dir / "Scripts" / name
+            if p.exists():
+                return str(p)
+    else:
+        for name in ["python3", "python"]:
+            p = venv_dir / "bin" / name
+            if p.exists():
+                return str(p)
+    return ""
 
 
 def get_python_path() -> str:
@@ -141,12 +156,11 @@ def get_python_path() -> str:
     path = get_setting("python.path")
     if path and Path(path).exists():
         return path
-    for candidate in [
-        WALKABOUT_HOME / ".venv" / "bin" / "python3",
-        WALKABOUT_HOME / ".venv" / "bin" / "python",
-    ]:
-        if candidate.exists():
-            return str(candidate)
+
+    p = _get_venv_python(WALKABOUT_HOME / ".venv")
+    if p:
+        return p
+
     for cmd in ["python3", "python"]:
         p = shutil.which(cmd)
         if p:

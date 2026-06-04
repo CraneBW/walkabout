@@ -48,7 +48,7 @@ def execute_note(req: ExecuteRequest) -> ExecuteResponse:
             error=str(e)
         )
 
-    with open(trace_path) as f:
+    with open(trace_path, encoding="utf-8") as f:
         trace = json.load(f)
     steps = len(trace.get("steps", []))
 

@@ -25,9 +25,9 @@ def _run_trace_subprocess(module_name: str, trace_path: Path, cwd: Path, timeout
     walkabout_root = str(Path(__file__).parent.parent.parent)
     walkabout_core = str(Path(__file__).parent.parent / "core")
     existing = os.environ.get("PYTHONPATH", "")
-    pythonpath = f"{walkabout_core}:{walkabout_root}"
+    pythonpath = os.pathsep.join([walkabout_core, walkabout_root])
     if existing:
-        pythonpath += f":{existing}"
+        pythonpath += os.pathsep + existing
 
     env = os.environ.copy()
     env["PYTHONPATH"] = pythonpath
@@ -84,7 +84,7 @@ def _run_trace_inprocess(module_name: str, trace_path: Path, cwd: Path) -> None:
         trace = execute(module_name=module_name, inspect_all_variables=False)
 
         trace_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(trace_path, "w") as f:
+        with open(trace_path, "w", encoding="utf-8") as f:
             json.dump(asdict(trace), f, indent=2)
     finally:
         sys.path[:] = old_path

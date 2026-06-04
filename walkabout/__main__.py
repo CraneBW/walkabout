@@ -25,7 +25,6 @@ def _run_server(app, host: str, port: int, log_level: str = "info",
         sock = _create_bind_socket(host, port)
     except OSError as e:
         print(f"\n   Error: Port {port} is already in use.")
-        print(f"   Run:  fuser -k {port}/tcp")
         print(f"   Or change port in ~/.walkabout/settings.json (window.port)\n")
         return
 
@@ -85,8 +84,8 @@ def main():
     url = f"http://localhost:{port}"
 
     # Detect headless / WSL --skip GUI, use server-only mode
-    # Windows always has a display. Linux/macOS check $DISPLAY / $WAYLAND_DISPLAY.
-    if sys.platform == "win32":
+    # Windows and macOS always have a display. Linux checks $DISPLAY / $WAYLAND_DISPLAY.
+    if sys.platform in ("win32", "darwin"):
         has_display = True
     else:
         has_display = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
@@ -130,7 +129,6 @@ def main():
 
         if not _wait_for_server(port, timeout=5.0):
             print("   Error: Server did not start in time. Check the output above.")
-            print(f"   Try:  fuser -k {port}/tcp")
             return
 
         print("   Launching native window...")
