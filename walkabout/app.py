@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import FileResponse
+from starlette.staticfiles import StaticFiles as StarletteStaticFiles
 
 from .config import NOTES_DIR, TRACES_DIR, FILES_DIR, ensure_dirs
 from .api.notes import router as notes_router
@@ -13,6 +14,14 @@ from .api.env import router as env_router
 from .api.config import router as config_router
 from .api.export import router as export_router
 from .plugins.manager import PluginManager
+
+
+class _NoCacheStaticFiles(StarletteStaticFiles):
+    """StaticFiles that sets Cache-Control: no-cache for dev reliability."""
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
 
 
 def create_app() -> FastAPI:
@@ -41,13 +50,13 @@ def create_app() -> FastAPI:
     pm.on_startup(app)
     app.state.plugin_manager = pm
 
-    # Serve trace JSON files
-    app.mount("/api/traces", StaticFiles(directory=str(TRACES_DIR)), name="traces")
+    # Serve trace JSON files (no cache for dev reliability)
+    app.mount("/api/traces", _NoCacheStaticFiles(directory=str(TRACES_DIR)), name="traces")
 
     # Serve frontend in production mode
     frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
     if frontend_dist.exists():
-        app.mount("/assets", StaticFiles(directory=str(frontend_dist / "assets")), name="assets")
+        app.mount("/assets", _NoCacheStaticFiles(directory=str(frontend_dist / "assets")), name="assets")
 
         @app.get("/{full_path:path}")
         async def serve_spa(full_path: str = ""):
@@ -56,7 +65,9 @@ def create_app() -> FastAPI:
                 return {"detail": "Not Found"}, 404
             index = frontend_dist / "index.html"
             if index.exists():
-                return FileResponse(str(index))
+                resp = FileResponse(str(index))
+                resp.headers["Cache-Control"] = "no-cache"
+                return resp
             return {"detail": "Frontend not built. Run: cd frontend && npm install && npm run build"}, 500
 
     return app
