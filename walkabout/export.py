@@ -168,6 +168,7 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 .past-step .markdown { font-size: 12px; color: #aaa; }
 .current-step .markdown { font-size: 13px; }
 .current-step .markdown h1, .current-step .markdown h2, .current-step .markdown h3 { color: #fff; }
+.step-env { margin: 2px 0; font-size: 12px; font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace; padding: 1px 0; }
 
 /* External link hover */
 .link-container { position: relative; display: inline; }
@@ -427,14 +428,17 @@ function renderStepOnly(panel) {
     }
     var renderings = step.renderings || [];
 
-	/* Content-only mode: accumulate renderings from step 0 to current */
+	/* Content-only mode: accumulate renderings + env changes from step 0 to current */
 	if (contentOnly) {
 	    var html = '<div style="padding:12px 20px">';
 	    for (var i = 0; i <= currentIndex; i++) {
 	        var s = steps[i];
 	        if (!s) continue;
 	        var rnds = s.renderings || [];
-	        if (rnds.length === 0) continue;
+	        var env = s.env || {};
+	        var envHidden = s.env_hidden || false;
+	        var envKeys = envHidden ? [] : Object.keys(env);
+	        if (rnds.length === 0 && envKeys.length === 0) continue;
 	        /* Include a subtle step indicator for non-current steps */
 	        if (i < currentIndex) {
 	            /* Past steps: dimmed indicator */
@@ -445,6 +449,17 @@ function renderStepOnly(panel) {
 	        }
 	        for (var r = 0; r < rnds.length; r++) {
 	            html += renderRendering(rnds[r]);
+	        }
+	        /* Inline env variable changes for this step */
+	        if (envKeys.length > 0) {
+	            html += '<div class="step-env">';
+	            for (var ek = 0; ek < envKeys.length; ek++) {
+	                html += '<span style="color:#60c0ff">' + escapeHtml(envKeys[ek]) + '</span>';
+	                html += ' <span style="color:#555">=</span> ';
+	                html += renderValue(env[envKeys[ek]]);
+	                html += (ek < envKeys.length - 1) ? '<span style="color:#555">, </span>' : '';
+	            }
+	            html += '</div>';
 	        }
 	        html += '</div>';
 	    }
