@@ -164,6 +164,11 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 .env-panel td:first-child { color: #60c0ff; white-space: nowrap; padding-right: 8px; }
 .env-empty { color: #555; font-style: italic; font-size: 11px; }
 
+/* Content-only step indicators */
+.past-step .markdown { font-size: 12px; color: #aaa; }
+.current-step .markdown { font-size: 13px; }
+.current-step .markdown h1, .current-step .markdown h2, .current-step .markdown h3 { color: #fff; }
+
 /* External link hover */
 .link-container { position: relative; display: inline; }
 .link-hover-panel { display: none; position: absolute; bottom: 100%; left: 0; background: #333; border: 1px solid #555; border-radius: 4px; padding: 8px; min-width: 220px; z-index: 50; font-size: 12px; margin-bottom: 4px; }
@@ -418,20 +423,36 @@ function renderStepOnly(panel) {
     }
     var renderings = step.renderings || [];
 
-    /* Content-only mode: show only renderings, no code */
-    if (contentOnly) {
-        if (renderings.length > 0) {
-            var html = '<div class="renderings" style="padding:12px 20px">';
-            for (var r = 0; r < renderings.length; r++) {
-                html += renderRendering(renderings[r]);
-            }
-            html += '</div>';
-            panel.innerHTML = html;
-        } else {
-            panel.innerHTML = '<div class="env-empty" style="padding:20px;text-align:center">No content for this step</div>';
-        }
-        return;
-    }
+	/* Content-only mode: accumulate renderings from step 0 to current */
+	if (contentOnly) {
+	    var html = '<div style="padding:12px 20px">';
+	    for (var i = 0; i <= currentIndex; i++) {
+	        var s = steps[i];
+	        if (!s) continue;
+	        var rnds = s.renderings || [];
+	        if (rnds.length === 0) continue;
+	        /* Include a subtle step indicator for non-current steps */
+	        if (i < currentIndex) {
+	            /* Past steps: dimmed indicator */
+	            html += '<div class="past-step" style="opacity:0.5;border-left:2px solid #555;padding:2px 0 2px 10px;margin:4px 0">';
+	        } else {
+	            /* Current step: full opacity */
+	            html += '<div class="current-step" style="border-left:2px solid #60c0ff;padding:2px 0 2px 10px;margin:4px 0">';
+	        }
+	        for (var r = 0; r < rnds.length; r++) {
+	            html += renderRendering(rnds[r]);
+	        }
+	        html += '</div>';
+	    }
+	    if (html.indexOf('class="') === -1) {
+	        /* No renderings found at all */
+	        panel.innerHTML = '<div class="env-empty" style="padding:20px;text-align:center">No content for this step</div>';
+	    } else {
+	        html += '</div>';
+	        panel.innerHTML = html;
+	    }
+	    return;
+	}
 
     /* Normal stripped-source mode: show stack frames + renderings */
     if (!step.stack || step.stack.length === 0) {
