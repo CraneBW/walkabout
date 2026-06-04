@@ -1,6 +1,7 @@
 """Walkabout API routers and shared utilities."""
 
 import os
+import sys
 import subprocess
 from pathlib import Path
 
@@ -10,8 +11,15 @@ RUNNER = Path(__file__).parent.parent / "runner.py"
 def _run_trace_subprocess(module_name: str, trace_path: Path, cwd: Path, timeout: float = 60) -> None:
     """Execute a note via runner.py subprocess and wait for the trace JSON.
 
+    When running inside a PyInstaller bundle, execute the runner logic
+    in-process instead of spawning a subprocess (sys.executable would be
+    the walkabout binary itself and would launch another GUI).
+
     Raises RuntimeError on failure or timeout.
     """
+    if getattr(sys, 'frozen', False):
+        return _run_trace_inprocess(module_name, trace_path, cwd)
+
     from ..config import get_python_path
 
     walkabout_root = str(Path(__file__).parent.parent.parent)
@@ -50,3 +58,35 @@ def _run_trace_subprocess(module_name: str, trace_path: Path, cwd: Path, timeout
 
     if not trace_path.exists():
         raise RuntimeError("Trace file not generated")
+
+
+def _run_trace_inprocess(module_name: str, trace_path: Path, cwd: Path) -> None:
+    """Execute a note in-process (used inside PyInstaller bundle)."""
+    import importlib
+    import json
+    from dataclasses import asdict
+    from ..core.execute import execute
+
+    old_cwd = os.getcwd()
+    old_home = os.environ.get("WALKABOUT_HOME")
+    try:
+        os.environ["WALKABOUT_HOME"] = str(Path.home() / ".walkabout")
+        os.chdir(str(cwd))
+
+        # Ensure workspace is on sys.path
+        if str(cwd) not in sys.path:
+            sys.path.insert(0, str(cwd))
+
+        mod = importlib.import_module(module_name)
+        if str(mod.__file__) not in sys.path:  # track for visible_paths
+            pass
+
+        trace = execute(module_name=module_name, inspect_all_variables=False)
+
+        trace_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(trace_path, "w") as f:
+            json.dump(asdict(trace), f, indent=2)
+    finally:
+        os.chdir(old_cwd)
+        if old_home is not None:
+            os.environ["WALKABOUT_HOME"] = old_home
