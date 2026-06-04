@@ -1,5 +1,5 @@
 """Walkabout configuration — VS Code-style settings with schema, defaults, validation."""
-import os, json, shutil, copy
+import os, sys, json, shutil, copy
 from pathlib import Path
 from typing import Any
 
