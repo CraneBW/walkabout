@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { applyTheme } from '../theme';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -40,6 +41,10 @@ export default function SettingsPage() {
       const res = await axios.get('/api/config');
       setSettings(res.data);
       setJsonText(JSON.stringify(res.data, null, 2));
+      // Apply theme immediately when appearance.theme changes
+      if (key === 'appearance.theme') {
+        applyTheme(value);
+      }
     } catch (e) {
       console.error(e);
     }

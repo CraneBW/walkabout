@@ -412,20 +412,10 @@ function renderValue(value) {
 
 function makeProgressBar(currentStepIndex, totalSteps) {
   const progressPercentage = currentStepIndex !== null ? (currentStepIndex / (totalSteps - 1)) * 100 : 0;
-  const stepProgress = currentStepIndex !== null ? `${currentStepIndex} / ${totalSteps}` : null;
+  const stepProgress = currentStepIndex !== null ? `${currentStepIndex + 1} / ${totalSteps}` : null;
   return (
-    <div title={stepProgress} style={{
-      width: '100%',
-      height: '4px',
-      backgroundColor: 'lightgray',
-      marginTop: '4px',
-    }}>
-      <div style={{
-        width: `${progressPercentage}%`,
-        height: '100%',
-        backgroundColor: '#4CAF50',
-        transition: 'width 0.2s ease-out'
-      }}/>
+    <div className="progress-bar" title={stepProgress}>
+      <div className="progress-bar-fill" style={{ width: `${progressPercentage}%` }}/>
     </div>
   );
 }

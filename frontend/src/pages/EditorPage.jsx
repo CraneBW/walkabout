@@ -5,6 +5,8 @@ import Editor from '../components/Editor';
 import TraceViewer from '../TraceViewer';
 import { listNotes, getNote, saveNote, createNote, deleteNote, executeNote, exportNote, saveExport } from '../api';
 import { getEnvInfo, installPackages } from '../api';
+import { initTheme, toggleTheme, getCurrentTheme } from '../theme';
+import axios from 'axios';
 
 export default function EditorPage() {
   const navigate = useNavigate();
@@ -30,12 +32,33 @@ export default function EditorPage() {
   // Sidebar toggle (independent of zen mode)
   const [sidebarVisible, setSidebarVisible] = useState(true);
 
+  // Theme
+  const [currentTheme, setCurrentTheme] = useState(getCurrentTheme());
+
   // Toast notifications
   const [toast, setToast] = useState(null);
 
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
+  };
+
+  // Initialize theme from settings
+  useEffect(() => {
+    axios.get('/api/config').then(r => {
+      const theme = r.data?.appearance?.theme;
+      if (theme) {
+        initTheme(theme);
+        setCurrentTheme(theme);
+      } else {
+        initTheme();
+      }
+    }).catch(() => { initTheme(); });
+  }, []);
+
+  const handleToggleTheme = () => {
+    const next = toggleTheme();
+    setCurrentTheme(next);
   };
 
   useEffect(() => {
@@ -265,6 +288,9 @@ export default function EditorPage() {
               </button>
               <button onClick={() => setSidebarVisible(!sidebarVisible)} title={sidebarVisible ? 'Hide sidebar' : 'Show sidebar'} className="sidebar-toggle-btn">
                 {sidebarVisible ? '☰' : '☰'}
+              </button>
+              <button onClick={handleToggleTheme} title="Toggle theme" className="theme-toggle-btn">
+                {currentTheme === 'light' ? '☀' : '☾'}
               </button>
               <button onClick={toggleZen} title={zenMode ? 'Exit zen mode' : 'Zen mode (hide chrome)'} className="fs-btn">
                 {zenMode ? '◻' : '⊞'}

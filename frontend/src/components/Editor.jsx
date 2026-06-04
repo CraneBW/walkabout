@@ -1,7 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 
+function getEditorTheme() {
+  const theme = document.documentElement.getAttribute('data-theme');
+  return theme === 'light' ? 'vs' : 'vs-dark';
+}
+
 export default function Editor({ content, onChange }) {
   const [Monaco, setMonaco] = useState(null);
+  const [editorTheme, setEditorTheme] = useState(getEditorTheme());
 
   // Dynamically import monaco-editor to code-split ~5MB from the main chunk,
   // then configure @monaco-editor/react to use the local bundle instead of CDN
@@ -22,10 +28,18 @@ export default function Editor({ content, onChange }) {
     });
   }, []);
 
+  // Listen for theme changes
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setEditorTheme(getEditorTheme());
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
+  }, []);
+
   if (!Monaco) {
     return (
       <div className="editor-container editor-loading">
-        <div className="loading-spinner" />
         <span>Preparing editor...</span>
       </div>
     );
@@ -36,7 +50,7 @@ export default function Editor({ content, onChange }) {
       <Monaco
         height="100%"
         language="python"
-        theme="vs-dark"
+        theme={editorTheme}
         value={content}
         onChange={(v) => onChange(v || '')}
         options={{
