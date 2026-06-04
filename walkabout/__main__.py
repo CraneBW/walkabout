@@ -7,10 +7,27 @@ import sys, os, threading, time, socket
 
 
 def _create_bind_socket(host: str, port: int) -> socket.socket:
-    """Create a TCP socket with SO_REUSEADDR, bound and listening."""
+    """Create a TCP socket with SO_REUSEADDR, bound and listening.
+
+    If the port is already in use by another process, attempt to kill it
+    first so the new server can start cleanly.
+    """
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind((host, port))
+    try:
+        sock.bind((host, port))
+    except OSError:
+        # Port is in use — try to free it by killing the existing process
+        import subprocess
+        try:
+            result = subprocess.run(
+                ["fuser", "-k", f"{port}/tcp"],
+                capture_output=True, text=True, timeout=5,
+            )
+        except Exception:
+            pass
+        # Retry bind after killing the old process
+        sock.bind((host, port))
     sock.listen(2048)
     return sock
 
@@ -19,7 +36,12 @@ def _run_server(app, host: str, port: int, log_level: str = "info") -> None:
     """Run uvicorn with a pre-created socket to avoid TIME-WAIT conflicts."""
     import uvicorn
 
-    sock = _create_bind_socket(host, port)
+    try:
+        sock = _create_bind_socket(host, port)
+    except OSError as e:
+        print(f"   Error: Cannot bind to port {port}: {e}")
+        print(f"   Try: fuser -k {port}/tcp")
+        return
     config = uvicorn.Config(app, host=host, port=port, log_level=log_level)
     server = uvicorn.Server(config=config)
     server.run(sockets=[sock])
