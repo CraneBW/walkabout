@@ -7,11 +7,14 @@
     <script>
       // Prevent flash of wrong theme before React loads
       (function() {
-        var theme = localStorage.getItem('walkabout_theme') || 'dark';
-        if (theme === 'system') {
-          theme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-        }
-        document.documentElement.setAttribute('data-theme', theme);
+        try {
+          var theme = 'dark';
+          try { var stored = localStorage.getItem('walkabout_theme'); if (stored) theme = stored; } catch(e) {}
+          if (theme === 'system') {
+            theme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+          }
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch(e) {}
       })();
     </script>
     <script>
@@ -55,7 +58,15 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div style="padding:40px;text-align:center;color:#888;font-family:sans-serif">Loading Walkabout...</div></div>
+    <script>
+      window.onerror = function(msg, src, line, col, err) {
+        var root = document.getElementById('root');
+        root.innerHTML = '<div style="padding:40px;color:#e0556a;font-family:monospace;font-size:13px;background:#1a1b1e;height:100vh"><h3 style="color:#e0556a">JavaScript Error</h3><pre style="white-space:pre-wrap">' +
+          (err && err.stack ? err.stack.replace(/</g,'&lt;') : msg + ' at ' + src + ':' + line) +
+          '</pre><p style="margin-top:20px;color:#888">If you see this, React failed to load.</p></div>';
+      };
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
