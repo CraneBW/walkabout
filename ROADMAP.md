@@ -22,14 +22,14 @@
 
 ### B1. get_stack() 在多层 wrapper 下可能丢帧
 - **文件**: `walkabout/core/execute.py`
+- **状态**: 已修复 (#eaba7a2)
 - **现象**: 通过 runner.py → execute() 调用时，`get_stack()` 的栈帧过滤逻辑依赖 `execute` 函数名查找，如果用户 walkthrough 中定义了同名 `execute()` 函数，栈帧会被错误跳过。
-- **临时方案**: 按 `execute` 名查找分界点，大多数场景有效。
-- **修复方向**: 改用文件路径过滤（跳过含 `walkabout/core` 的帧），而非函数名。
+- **修复**: 改用文件路径过滤（检查 `walkabout/core/execute.py` 是否在栈帧路径中），而非函数名。
 
 ### B2. execute_util.py 的 arxiv_util 惰性导入不完整
-- **文件**: `walkabout/core/execute_util.py`
-- **现象**: `is_arxiv_link()` 在网络不可达时抛异常，且首次惰性导入有性能开销。
-- **修复方向**: 给网络调用加 try/except + 超时（3秒）。
+- **文件**: `walkabout/core/execute_util.py`, `walkabout/core/arxiv_util.py`, `walkabout/core/file_util.py`
+- **状态**: 已修复 (#eaba7a2)
+- **修复**: `link()` 内 arXiv 调用加 try/except 回退普通链接；`requests.get()` 加 10 秒超时；`arxiv_util.arxiv_reference()` XML 解析加 None 检查。
 
 ### B3. Monaco Editor CDN 依赖（已修复）
 - **文件**: `frontend/src/components/Editor.jsx`
@@ -37,14 +37,14 @@
 - **修复**: 安装 `monaco-editor` npm 包，通过动态 `Promise.all([import('monaco-editor'), import('@monaco-editor/react')])` 加载。Vite 自动代码分割：主 chunk 1.3MB 快速渲染，编辑器 chunk ~3.8MB 按需加载。消除 CDN 依赖同时避免白屏。
 
 ### B4. 子进程执行时 WALKABOUT_HOME 未显式传递给 runner
-- **文件**: `walkabout/api/execute.py`
-- **现象**: `os.environ.copy()` 继承当前环境但未显式设置 `WALKABOUT_HOME`，用户自定义路径可能在子进程中丢失。
-- **修复方向**: 在子进程 env 中显式 `env["WALKABOUT_HOME"] = str(WALKABOUT_HOME)`。
+- **文件**: `walkabout/api/__init__.py`
+- **状态**: 已修复 (#eaba7a2)
+- **修复**: 提取共享 `_run_trace_subprocess()` 到 `api/__init__.py`，显式设置 `env["WALKABOUT_HOME"]`。`api/execute.py` 和 `api/export.py` 均已使用共享函数。
 
 ### B5. 执行超时后子进程可能残留
-- **文件**: `walkabout/api/execute.py`
-- **现象**: `subprocess.run(timeout=60)` 超时抛异常后子进程未 kill，残留僵尸进程。
-- **修复方向**: `TimeoutExpired` 处理中 `proc.kill()` + `proc.wait()`。
+- **文件**: `walkabout/api/__init__.py`
+- **状态**: 已修复 (#eaba7a2)
+- **修复**: 改用 `subprocess.Popen` + `proc.communicate(timeout=N)`，`TimeoutExpired` 中 `proc.kill()` + `proc.wait()` 确保子进程被终止。
 
 ### B6. TraceViewer 构造函数中使用了 `BrowserRouter` 但已在上层路由中
 - **文件**: `frontend/src/TraceViewer.jsx`（复制自 CS336 课件）
@@ -152,8 +152,10 @@
 ## 架构债务 (Tech Debt)
 
 ### T1. execute.py 与 runner.py 调用链耦合
-- 两者通过 `get_stack()` 的栈帧结构隐式耦合，任一方的调用层级变化都会导致栈帧过滤失效。
-- 建议: 将执行引擎抽象为 `Engine` 类，runner 通过明确定义的接口（如 `Engine.run(module_name) -> Trace`）调用。
+- **状态**: 已修复 (#eaba7a2)
+- **修复**: `get_stack()` 改用文件路径匹配 (`walkabout/core/execute.py`) 替代函数名字符串匹配查找引擎边界，不被用户定义的 `execute()` 函数干扰。
+- 同时清理了 `execute.py` 中已死掉的 stdout/stderr buffer 捕获代码（`io.StringIO` 缓冲区、注释掉的 `sys.stdout` 替换）。
+- 提取共享子进程 runner `_run_trace_subprocess()` 到 `api/__init__.py`，消除 `api/execute.py` 和 `api/export.py` 之间的 ~40 行重复代码。
 
 ### T2. TraceViewer 代码与上游分裂
 - 从 CS336 课件复制后独立演进，与原始上游无共享机制。

@@ -99,8 +99,12 @@ def link(arg: type | Reference | str | None = None, style: dict | None = None, *
     elif isinstance(arg, str):
         from arxiv_util import is_arxiv_link, arxiv_reference
         if is_arxiv_link(arg):
-            reference = arxiv_reference(arg)
-            _current_renderings.append(Rendering(type="link", style=style, external_link=reference))
+            try:
+                reference = arxiv_reference(arg)
+                _current_renderings.append(Rendering(type="link", style=style, external_link=reference))
+            except Exception:
+                reference = Reference(url=arg)
+                _current_renderings.append(Rendering(type="link", style=style, external_link=reference))
         else:
             reference = Reference(url=arg)
             _current_renderings.append(Rendering(type="link", style=style, external_link=reference))

@@ -1,15 +1,12 @@
 """Export API — generate standalone HTML from a walkthrough trace."""
-import json
-import os
-import subprocess
-import uuid
 from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from ..config import NOTES_DIR, TRACES_DIR, ensure_dirs, get_python_path, load_settings
+from ..config import NOTES_DIR, TRACES_DIR, ensure_dirs, load_settings
 from ..export import export_note
+from . import _run_trace_subprocess
 
 router = APIRouter(prefix="/api/export", tags=["export"])
 
@@ -19,35 +16,6 @@ class ExportRequest(BaseModel):
     content: Optional[str] = None
     title: Optional[str] = None
     content_only: bool = False  # preserve source code and env panel by default
-
-
-RUNNER = Path(__file__).parent.parent / "runner.py"
-
-def _run_trace(note_path: Path, module_name: str) -> Path:
-    """Execute a note and return the path to its trace JSON."""
-    trace_path = TRACES_DIR / f"{module_name}.json"
-
-    env = os.environ.copy()
-    walkabout_root = str(Path(__file__).parent.parent.parent)
-    walkabout_core = str(Path(__file__).parent.parent / "core")
-    existing = env.get("PYTHONPATH", "")
-    env["PYTHONPATH"] = f"{walkabout_core}:{walkabout_root}" + (f":{existing}" if existing else "")
-    env["WALKABOUT_HOME"] = str(Path.home() / ".walkabout")
-
-    python_exe = get_python_path()
-    result = subprocess.run(
-        [python_exe, "-u", str(RUNNER),
-         "--workspace", str(NOTES_DIR),
-         "--module", module_name,
-         "--output", str(trace_path)],
-        capture_output=True, text=True,
-        timeout=60, cwd=str(NOTES_DIR), env=env,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "Execution failed")
-    if not trace_path.exists():
-        raise RuntimeError("Trace file not generated")
-    return trace_path
 
 
 @router.get("")
@@ -91,7 +59,8 @@ def export_note_endpoint(req: ExportRequest) -> FileResponse:
     html_path = TRACES_DIR / html_name
 
     try:
-        trace_path = _run_trace(note_path, module_name)
+        trace_path = TRACES_DIR / f"{module_name}.json"
+        _run_trace_subprocess(module_name, trace_path, cwd=NOTES_DIR)
         title = req.title or module_name
         export_note(trace_path, html_path, title=title, strip_source=False)
     except RuntimeError as e:
@@ -145,7 +114,8 @@ def export_and_save(req: ExportRequest) -> dict:
     html_path = export_path / html_name
 
     try:
-        trace_path = _run_trace(note_path, module_name)
+        trace_path = TRACES_DIR / f"{module_name}.json"
+        _run_trace_subprocess(module_name, trace_path, cwd=NOTES_DIR)
         title = req.title or module_name
         export_note(trace_path, html_path, title=title, strip_source=True, content_only=req.content_only)
     except RuntimeError as e:

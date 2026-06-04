@@ -1,5 +1,4 @@
 from __future__ import annotations
-import io
 import argparse
 import importlib
 import inspect
@@ -112,13 +111,7 @@ def execute(module_name: str, inspect_all_variables: bool) -> Trace:
     """
     steps: list[Step] = []
 
-    # Capture stdout and stderr
     real_stdout = sys.stdout
-    real_stderr = sys.stderr
-    stdout_buffer = io.StringIO()
-    stderr_buffer = io.StringIO()
-    #sys.stdout = stdout_buffer
-    #sys.stderr = stderr_buffer
 
     # Figure out which files we're actually tracing
     visible_paths = []
@@ -136,7 +129,7 @@ def execute(module_name: str, inspect_all_variables: bool) -> Trace:
         # Find where execute() sits in the stack
         execute_idx = None
         for i, item in enumerate(items):
-            if item.name == "execute":
+            if "walkabout/core/execute.py" in item.filename.replace("\\", "/"):
                 execute_idx = i
                 break
         if execute_idx is None:
@@ -237,14 +230,6 @@ def execute(module_name: str, inspect_all_variables: bool) -> Trace:
                     print(f"WARNING: variable {var} not found in locals")
                 print(f"    env: {var} = {close_step.env.get(var)}", file=real_stdout)
         
-            # Capture stdout and stderr
-            close_step.stdout = stdout_buffer.getvalue()
-            close_step.stderr = stderr_buffer.getvalue()
-            stdout_buffer.truncate(0)
-            stdout_buffer.seek(0)
-            stderr_buffer.truncate(0)
-            stderr_buffer.seek(0)
-
             # Capture the renderings of the last line
             close_step.renderings = pop_renderings()
 
@@ -260,10 +245,6 @@ def execute(module_name: str, inspect_all_variables: bool) -> Trace:
     sys.settrace(trace_func)
     module.main()
     sys.settrace(None)
-
-    # Restore stdout and stderr
-    sys.stdout = real_stdout
-    sys.stderr = real_stderr
 
     files = {relativize(path): open(path).read() for path in visible_paths}
     trace = Trace(steps=steps, files=files)

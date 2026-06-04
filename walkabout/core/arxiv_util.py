@@ -34,11 +34,25 @@ def arxiv_reference(url: str, **kwargs) -> Reference:
     root = ET.fromstring(contents)
 
     # Extract the relevant metadata
-    entry = root.find('{http://www.w3.org/2005/Atom}entry')
-    title = canonicalize(entry.find('{http://www.w3.org/2005/Atom}title').text)
-    authors = [canonicalize(author.find('{http://www.w3.org/2005/Atom}name').text) for author in entry.findall('{http://www.w3.org/2005/Atom}author')]
-    summary = canonicalize(entry.find('{http://www.w3.org/2005/Atom}summary').text)
-    published = entry.find('{http://www.w3.org/2005/Atom}published').text
+    ns = "http://www.w3.org/2005/Atom"
+    entry = root.find(f"{{{ns}}}entry")
+    if entry is None:
+        raise ValueError(f"No entry found in arXiv API response for {paper_id}")
+
+    title_el = entry.find(f"{{{ns}}}title")
+    title = canonicalize(title_el.text) if title_el is not None else paper_id
+
+    authors = []
+    for author in entry.findall(f"{{{ns}}}author"):
+        name_el = author.find(f"{{{ns}}}name")
+        if name_el is not None and name_el.text:
+            authors.append(canonicalize(name_el.text))
+
+    summary_el = entry.find(f"{{{ns}}}summary")
+    summary = canonicalize(summary_el.text) if summary_el is not None else ""
+
+    published_el = entry.find(f"{{{ns}}}published")
+    published = published_el.text if published_el is not None else ""
 
     return Reference(
         title=title,
