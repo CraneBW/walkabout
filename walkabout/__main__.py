@@ -7,44 +7,49 @@ import sys, os, threading, time, socket
 
 
 def _create_bind_socket(host: str, port: int) -> socket.socket:
-    """Create a TCP socket with SO_REUSEADDR, bound and listening.
-
-    If the port is already in use by another process, attempt to kill it
-    first so the new server can start cleanly.
-    """
+    """Create a TCP socket with SO_REUSEADDR, bound and listening."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    try:
-        sock.bind((host, port))
-    except OSError:
-        # Port is in use — try to free it by killing the existing process
-        import subprocess
-        try:
-            result = subprocess.run(
-                ["fuser", "-k", f"{port}/tcp"],
-                capture_output=True, text=True, timeout=5,
-            )
-        except Exception:
-            pass
-        # Retry bind after killing the old process
-        sock.bind((host, port))
+    sock.bind((host, port))
     sock.listen(2048)
     return sock
 
 
-def _run_server(app, host: str, port: int, log_level: str = "info") -> None:
-    """Run uvicorn with a pre-created socket to avoid TIME-WAIT conflicts."""
+def _run_server(app, host: str, port: int, log_level: str = "info",
+                ready: threading.Event = None) -> None:
+    """Run uvicorn with a pre-created socket.  Signals *ready* when the
+    socket is bound so the main thread can open the GUI window safely."""
     import uvicorn
 
     try:
         sock = _create_bind_socket(host, port)
     except OSError as e:
-        print(f"   Error: Cannot bind to port {port}: {e}")
-        print(f"   Try: fuser -k {port}/tcp")
+        print(f"\n   Error: Port {port} is already in use.")
+        print(f"   Run:  fuser -k {port}/tcp")
+        print(f"   Or change port in ~/.walkabout/settings.json (window.port)\n")
         return
+
+    if ready:
+        ready.set()
+
     config = uvicorn.Config(app, host=host, port=port, log_level=log_level)
     server = uvicorn.Server(config=config)
     server.run(sockets=[sock])
+
+
+def _wait_for_server(port: int, timeout: float = 5.0) -> bool:
+    """Poll until the HTTP server accepts connections or *timeout* expires."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            s = socket.socket()
+            s.settimeout(0.5)
+            s.connect(("127.0.0.1", port))
+            s.close()
+            return True
+        except (ConnectionRefusedError, OSError):
+            time.sleep(0.1)
+    return False
 
 
 def main():
@@ -71,7 +76,7 @@ def main():
     from pathlib import Path
     dist = Path(__file__).parent.parent / "frontend" / "dist" / "index.html"
     if not dist.exists():
-        print("   ⚠  Frontend not built. First-time setup:")
+        print("   \u26a0  Frontend not built. First-time setup:")
         print("      cd frontend && npm install && npm run build")
         print()
 
@@ -102,15 +107,22 @@ def main():
         open_window = None  # pywebview not installed, skip native window
 
     if open_window:
-        # Start server in background thread for the native window case
+        # Start server in background thread; wait until it is actually
+        # accepting connections before opening the GUI window.
+        server_ready = threading.Event()
         server_thread = threading.Thread(
             target=_run_server,
             args=(app, host, port),
-            kwargs=dict(log_level="warning"),
+            kwargs=dict(log_level="warning", ready=server_ready),
             daemon=True,
         )
         server_thread.start()
-        time.sleep(1.5)
+
+        if not _wait_for_server(port, timeout=5.0):
+            print("   Error: Server did not start in time. Check the output above.")
+            print(f"   Try:  fuser -k {port}/tcp")
+            return
+
         print("   Launching native window...")
         try:
             open_window(url)
@@ -121,7 +133,6 @@ def main():
             print(f"   Opening {url} ...")
             import webbrowser
             webbrowser.open(url)
-            # Server thread is already running — keep the process alive by waiting
             server_thread.join()
             return
 
