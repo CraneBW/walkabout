@@ -3,7 +3,7 @@
 Launches as a standalone desktop app with embedded webview.
 No external browser required.
 """
-import sys, os, threading, time, socket
+import sys, os, threading, time, socket, platform
 
 
 def _create_bind_socket(host: str, port: int) -> socket.socket:
@@ -86,7 +86,12 @@ def main():
 
     # Detect headless / WSL — skip GUI, use server-only mode
     has_display = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
-    is_wsl = "microsoft" in os.uname().release.lower() or bool(os.environ.get("WSL_DISTRO_NAME", ""))
+    is_wsl = bool(os.environ.get("WSL_DISTRO_NAME", ""))
+    if not is_wsl:
+        try:
+            is_wsl = "microsoft" in platform.uname().release.lower()
+        except Exception:
+            pass
 
     if is_wsl:
         print(f"   WSL2 detected — server starting at:")
