@@ -178,8 +178,8 @@ export default function EditorPage() {
         throw new Error(result.error || 'Execution failed');
       }
       // Save to configured export directory on disk
-      const result = await saveExport(selectedPath);
-      showToast('Exported → ' + result.path);
+      const saveResult = await saveExport(selectedPath);
+      showToast('Exported → ' + saveResult.path);
     } catch (e) {
       setError('Export failed: ' + (e.message || e));
     }

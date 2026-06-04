@@ -8,6 +8,35 @@ from pathlib import Path
 from typing import Any, Optional
 
 
+def _clean_trace(trace: dict[str, Any]) -> dict[str, Any]:
+    """Strip unreferenced source code, keeping only lines that appear in steps.
+
+    Walks every stack frame across all steps and rebuilds file contents from
+    only the code lines that were actually executed.  Any line number that is
+    never referenced becomes an empty line in the reconstructed file so the
+    viewer's line-numbering stays correct.
+    """
+    steps = trace.get("steps", [])
+    file_lines: dict[str, dict[int, str]] = {}  # path -> {line_number: code}
+
+    for step in steps:
+        for frame in step.get("stack", []):
+            path = frame.get("path", "")
+            line = frame.get("line_number", 0)
+            code = frame.get("code", "")
+            if path and line:
+                file_lines.setdefault(path, {})[line] = code
+
+    cleaned: dict[str, str] = {}
+    for path, lines in file_lines.items():
+        max_line = max(lines)
+        cleaned[path] = "\n".join(lines.get(i, "") for i in range(1, max_line + 1))
+
+    trace = dict(trace)
+    trace["files"] = cleaned
+    return trace
+
+
 def generate_html(
     trace: dict[str, Any],
     title: str = "Walkthrough",
@@ -15,13 +44,13 @@ def generate_html(
 ) -> str:
     """Generate a self-contained HTML file from a trace dict.
 
-    When *strip_source* is True (default), full file contents are removed from
-    the embedded trace — the viewer falls back to showing only each step's code
-    line(s) from the call stack.
+    When *strip_source* is True, only the lines referenced in step stack
+    frames are kept in the embedded files — unreferenced source code is
+    stripped from the export.  The viewer still renders a full file view
+    with syntax highlighting for the lines that remain.
     """
     if strip_source:
-        trace = dict(trace)
-        trace["files"] = {}
+        trace = _clean_trace(trace)
     trace_json = json.dumps(trace, ensure_ascii=False, indent=2)
     files: dict[str, str] = trace.get("files", {})
     file_entries = "".join(
@@ -42,6 +71,7 @@ def export_note(
     trace_path: Path,
     output_path: Path,
     title: Optional[str] = None,
+    strip_source: bool = False,
 ) -> Path:
     """Read a trace JSON file and write a standalone HTML file.
 
@@ -51,7 +81,7 @@ def export_note(
         trace = json.load(f)
 
     name = title or trace_path.stem
-    html = generate_html(trace, title=name)
+    html = generate_html(trace, title=name, strip_source=strip_source)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(html, encoding="utf-8")

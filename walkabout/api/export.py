@@ -63,7 +63,7 @@ def export_note_get(path: str, title: Optional[str] = None) -> FileResponse:
     html_path = TRACES_DIR / html_name
 
     name = title or module_name
-    export_note(trace_path, html_path, title=name)
+    export_note(trace_path, html_path, title=name, strip_source=False)
 
     return FileResponse(
         str(html_path),
@@ -92,7 +92,7 @@ def export_note_endpoint(req: ExportRequest) -> FileResponse:
     try:
         trace_path = _run_trace(note_path, module_name)
         title = req.title or module_name
-        export_note(trace_path, html_path, title=title)
+        export_note(trace_path, html_path, title=title, strip_source=False)
     except RuntimeError as e:
         raise HTTPException(500, str(e))
 
@@ -146,7 +146,7 @@ def export_and_save(req: ExportRequest) -> dict:
     try:
         trace_path = _run_trace(note_path, module_name)
         title = req.title or module_name
-        export_note(trace_path, html_path, title=title)
+        export_note(trace_path, html_path, title=title, strip_source=True)
     except RuntimeError as e:
         raise HTTPException(500, str(e))
 
