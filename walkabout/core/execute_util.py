@@ -9,10 +9,10 @@ import os
 import inspect
 import re
 import subprocess
-from file_util import cached, relativize
+from walkabout.core.file_util import cached, relativize
 from dataclasses import dataclass
 # arxiv_util imported lazily inside link()
-from reference import Reference
+from walkabout.core.reference import Reference
 
 @dataclass(frozen=True)
 class CodeLocation:
@@ -97,7 +97,7 @@ def link(arg: type | Reference | str | None = None, style: dict | None = None, *
         anchor = CodeLocation(relativize(path), line_number)
         _current_renderings.append(Rendering(type="link", data=arg.__name__, style=style, internal_link=anchor))
     elif isinstance(arg, str):
-        from arxiv_util import is_arxiv_link, arxiv_reference
+        from walkabout.core.arxiv_util import is_arxiv_link, arxiv_reference
         if is_arxiv_link(arg):
             try:
                 reference = arxiv_reference(arg)

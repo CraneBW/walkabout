@@ -73,7 +73,8 @@ def _run_trace_inprocess(module_name: str, trace_path: Path, cwd: Path) -> None:
         os.environ["WALKABOUT_HOME"] = str(Path.home() / ".walkabout")
         os.chdir(str(cwd))
 
-        # core/ uses bare imports (from execute_util import ...) — needs on sys.path
+        # User walkthrough scripts use ``from execute_util import ...``
+        # (bare import).  The core/ directory must be on sys.path for this.
         core_dir = str(Path(__file__).parent.parent / "core")
         for p in [str(cwd), core_dir]:
             if p not in sys.path:

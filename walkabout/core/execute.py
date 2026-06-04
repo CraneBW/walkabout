@@ -16,8 +16,8 @@ except ImportError:
 from dataclasses import dataclass, asdict, field, is_dataclass, fields
 import os
 import re
-from execute_util import Rendering, pop_renderings
-from file_util import ensure_directory_exists, relativize
+from walkabout.core.execute_util import Rendering, pop_renderings
+from walkabout.core.file_util import ensure_directory_exists, relativize
 from typing import Any
 
 

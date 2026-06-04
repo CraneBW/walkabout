@@ -45,8 +45,7 @@ def main():
     mod = importlib.import_module(args.module)
 
     # Execute with tracing
-    # Import execute from walkabout.core
-    from execute import execute
+    from walkabout.core.execute import execute
 
     trace = execute(module_name=args.module, inspect_all_variables=False)
 
