@@ -41,22 +41,32 @@ def generate_html(
     trace: dict[str, Any],
     title: str = "Walkthrough",
     strip_source: bool = False,
+    content_only: bool = False,
 ) -> str:
     """Generate a self-contained HTML file from a trace dict.
 
-    When *strip_source* is True, only the lines referenced in step stack
-    frames are kept in the embedded files — unreferenced source code is
-    stripped from the export.  The viewer still renders a full file view
-    with syntax highlighting for the lines that remain.
+    *strip_source* — when True, only the lines referenced in step stack
+    frames are kept in the embedded files.
+
+    *content_only* — when True, the exported HTML shows only rendered
+    outputs (markdown, images, etc.) and no source code at all.  This
+    is useful for sharing walkthroughs with a non-technical audience.
+    Implies *strip_source*.
     """
-    if strip_source:
+    if strip_source or content_only:
         trace = _clean_trace(trace)
+    if content_only:
+        trace = dict(trace)
+        trace.pop("files", None)
+        files: dict[str, str] = {}
+    else:
+        files: dict[str, str] = trace.get("files", {})
     trace_json = json.dumps(trace, ensure_ascii=False, indent=2)
-    files: dict[str, str] = trace.get("files", {})
     file_entries = "".join(
         f'<option value="{k}">{k}</option>' for k in files
     )
     file_style = "display:none" if not files else ""
+    content_only_flag = "true" if content_only else "false"
 
     title_escaped = _escape_html(title)
     html = _TEMPLATE
@@ -64,6 +74,8 @@ def generate_html(
     html = html.replace("__TRACE_JSON__", trace_json)
     html = html.replace("__FILE_ENTRIES__", file_entries)
     html = html.replace("__FILE_SELECT_STYLE__", file_style)
+    html = html.replace("__CONTENT_ONLY__", content_only_flag)
+    html = html.replace("__ENV_PANEL_STYLE__", "display:none" if content_only else "")
     return html
 
 
@@ -72,6 +84,7 @@ def export_note(
     output_path: Path,
     title: Optional[str] = None,
     strip_source: bool = False,
+    content_only: bool = False,
 ) -> Path:
     """Read a trace JSON file and write a standalone HTML file.
 
@@ -81,7 +94,11 @@ def export_note(
         trace = json.load(f)
 
     name = title or trace_path.stem
-    html = generate_html(trace, title=name, strip_source=strip_source)
+    html = generate_html(
+        trace, title=name,
+        strip_source=strip_source,
+        content_only=content_only,
+    )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(html, encoding="utf-8")
@@ -181,7 +198,7 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
   <div class="lines-panel" id="lines-panel"></div>
 </div>
 
-<div class="env-panel" id="env-panel">
+<div class="env-panel" id="env-panel" style="__ENV_PANEL_STYLE__">
   <h4>Variables</h4>
   <div id="env-content"><span class="env-empty">No variables</span></div>
 </div>
@@ -194,8 +211,8 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 <script>
 MathJax = {
   tex: {
-    inlineMath: [['$', '$'], ['\\(', '\\)']],
-    displayMath: [['$$', '$$'], ['\\[', '\\]']]
+    inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
+    displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']]
   },
   svg: { fontCache: 'global' }
 };
@@ -209,6 +226,7 @@ var trace = JSON.parse(document.getElementById('trace-data').textContent);
 var files = trace.files || {};
 var steps = trace.steps || [];
 var currentIndex = 0;
+var contentOnly = __CONTENT_ONLY__;
 var currentPath = Object.keys(files)[0] || '';
 /* When source files were stripped, grab path from first step */
 if (!currentPath && steps.length > 0 && steps[0].stack && steps[0].stack.length > 0) {
@@ -334,7 +352,7 @@ function renderLines() {
     /* When source files are not available (stripped for privacy), show step stack only */
     if (!source) {
         renderStepOnly(panel);
-        renderEnv();
+        if (!contentOnly) renderEnv();
         document.getElementById('step-num').textContent = currentIndex;
         if (window.MathJax && MathJax.typesetPromise) {
             MathJax.typesetPromise([panel]).catch(function () {});
@@ -394,7 +412,29 @@ function renderLines() {
 /* Render current step stack frames when full file source is not available */
 function renderStepOnly(panel) {
     var step = steps[currentIndex];
-    if (!step || !step.stack || step.stack.length === 0) {
+    if (!step) {
+        panel.innerHTML = '<div class="env-empty" style="padding:20px;text-align:center">No content</div>';
+        return;
+    }
+    var renderings = step.renderings || [];
+
+    /* Content-only mode: show only renderings, no code */
+    if (contentOnly) {
+        if (renderings.length > 0) {
+            var html = '<div class="renderings" style="padding:12px 20px">';
+            for (var r = 0; r < renderings.length; r++) {
+                html += renderRendering(renderings[r]);
+            }
+            html += '</div>';
+            panel.innerHTML = html;
+        } else {
+            panel.innerHTML = '<div class="env-empty" style="padding:20px;text-align:center">No content for this step</div>';
+        }
+        return;
+    }
+
+    /* Normal stripped-source mode: show stack frames + renderings */
+    if (!step.stack || step.stack.length === 0) {
         panel.innerHTML = '<div class="env-empty" style="padding:20px;text-align:center">No source code available</div>';
         return;
     }
@@ -407,7 +447,6 @@ function renderStepOnly(panel) {
         html += '<span class="code-container">' + escapeHtml(frame.code) + '</span>';
         html += '</div>';
     }
-    var renderings = step.renderings || [];
     if (renderings.length > 0) {
         html += '<div class="renderings">';
         for (var r = 0; r < renderings.length; r++) {
