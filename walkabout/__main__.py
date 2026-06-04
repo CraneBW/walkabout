@@ -85,7 +85,12 @@ def main():
     url = f"http://localhost:{port}"
 
     # Detect headless / WSL — skip GUI, use server-only mode
-    has_display = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+    # Windows always has a display. Linux/macOS check $DISPLAY / $WAYLAND_DISPLAY.
+    if sys.platform == "win32":
+        has_display = True
+    else:
+        has_display = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+
     is_wsl = bool(os.environ.get("WSL_DISTRO_NAME", ""))
     if not is_wsl:
         try:

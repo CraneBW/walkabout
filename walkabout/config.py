@@ -133,6 +133,11 @@ def set_setting(key: str, value: Any):
 
 
 def get_python_path() -> str:
+    # When running inside a PyInstaller bundle, sys.executable is the
+    # packed binary which can also run Python scripts.
+    if getattr(sys, 'frozen', False):
+        return sys.executable
+
     path = get_setting("python.path")
     if path and Path(path).exists():
         return path

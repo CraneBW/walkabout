@@ -12,14 +12,17 @@ def main():
     parser.add_argument("--module", required=True, help="Module name to import")
     parser.add_argument("--output", required=True, help="Output trace JSON path")
     args = parser.parse_args()
-    # Use workspace venv Python if available
-    venv_python = os.path.join(args.workspace, ".venv", "bin", "python3")
-    if not os.path.exists(venv_python):
-        venv_python = os.path.join(os.path.expanduser("~/.walkabout"), ".venv", "bin", "python3")
-    if os.path.exists(venv_python):
-        # Re-exec self with venv Python
-        if sys.executable != venv_python:
-            os.execv(venv_python, [venv_python] + sys.argv)
+    # When running inside a PyInstaller bundle, sys.executable IS the Python
+    # interpreter (the packed binary).  Skip the venv re-exec — it would
+    # replace us with a venv Python that may not have walkabout installed.
+    if not getattr(sys, 'frozen', False):
+        # Use workspace venv Python if available
+        venv_python = os.path.join(args.workspace, ".venv", "bin", "python3")
+        if not os.path.exists(venv_python):
+            venv_python = os.path.join(os.path.expanduser("~/.walkabout"), ".venv", "bin", "python3")
+        if os.path.exists(venv_python):
+            if sys.executable != venv_python:
+                os.execv(venv_python, [venv_python] + sys.argv)
 
 
     # Setup paths: workspace first, then core engine
