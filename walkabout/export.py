@@ -376,13 +376,17 @@ function renderLines() {
     var html = '';
     for (var i = 0; i < allLines.length; i++) {
         var lineNum = i + 1;
-        var cls = 'line';
-        if (lineNum === currentLine) cls += ' current-line';
+        var codeText = allLines[i].trim();
+        var isTextCall = codeText.startsWith('text(');
 
-        html += '<div class="' + cls + '">';
-        html += '<span class="line-number" data-path="' + escapeHtml(path) + '" data-line="' + lineNum + '">' + lineNum + '</span>';
-        html += '<span class="code-container">' + (hlLines[i] || '') + '</span>';
-        html += '</div>';
+        if (!isTextCall) {
+            var cls = 'line';
+            if (lineNum === currentLine) cls += ' current-line';
+            html += '<div class="' + cls + '">';
+            html += '<span class="line-number" data-path="' + escapeHtml(path) + '" data-line="' + lineNum + '">' + lineNum + '</span>';
+            html += '<span class="code-container">' + (hlLines[i] || '') + '</span>';
+            html += '</div>';
+        }
 
         var renderings = getRenderingsForLine(path, lineNum);
         if (renderings.length > 0) {
