@@ -195,6 +195,23 @@ class MyPlugin(WalkaboutPlugin):
 | GET | `/api/config/schema` | 获取设置 schema |
 | POST | `/api/config/set` | 修改单个设置 |
 | POST | `/api/config/reset` | 恢复默认设置 |
+| GET | `/api/export` | 导出已有 trace 为独立 HTML |
+| POST | `/api/export` | 执行 note 并导出为独立 HTML 下载 |
+| GET | `/api/export/preview/{path}` | 预览已导出的 HTML |
+| POST | `/api/export/save` | 执行 note 并保存 HTML 到导出目录（支持 `strip_source`、`content_only` 选项） |
+
+## 导出 (Export)
+
+Walkthrough 可导出为 **独立 HTML** 文件，无需 Python 后端即可在浏览器中逐帧回放：
+
+- **完整模式**（默认）：显示源代码（高亮）、渲染内容、环境变量面板
+- **内容模式**（`content_only=True`）：仅显示渲染内容和变量变化，隐藏源码
+- **text() 隐藏**：`text(...)` 调用行自动隐藏，仅显示渲染后的 Markdown 输出
+
+```bash
+# 通过 API 导出（POST /api/export/save）
+# 设置中可指定 export.directory 保存路径
+```
 
 ## 依赖
 

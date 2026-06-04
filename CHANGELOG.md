@@ -4,6 +4,20 @@
 
 ### Added
 
+- **导出 HTML 隐藏 text() 调用代码行**
+  - standalone viewer 的 `renderLines()` 中跳过以 `text(` 开头的代码行，仅保留渲染后的 Markdown 输出，界面更干净。
+  - 影响文件: `walkabout/export.py`
+
+- **内容导出模式(content-only)内联显示变量变化**
+  - content-only 模式下，每一步的 env 变量变化以行内形式直接显示在渲染内容下方，无需单独的环境变量面板。
+  - 新增 `.step-env` CSS 样式。
+  - 影响文件: `walkabout/export.py`
+
+- **导出默认改为完整模式（代码 + 渲染 + 环境面板）**
+  - `ExportRequest.content_only` 默认值从 `True` 改为 `False`，保留源码和环境面板。
+  - `export_and_save()` 调用 `export_note()` 时传递 `strip_source=True`，在完整模式下清理未引用的源码行。
+  - 影响文件: `walkabout/api/export.py`
+
 - **F4: 导出为独立 HTML — 不依赖 Python 后端的可分享 Walkthrough**
   - `walkabout/export.py`: 将 trace JSON 打包为自包含 HTML（嵌入 trace 数据 + 样式 + 渲染脚本，CDN 加载 highlight.js/marked/MathJax 实现语法高亮/Markdown/数学公式）。
   - `POST /api/export`: 后端 API 一键执行 note → 生成 HTML → 返回下载（`Content-Disposition: attachment`）。
