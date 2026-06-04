@@ -1,18 +1,26 @@
 const THEME_KEY = 'walkabout_theme';
 
 export function getSystemTheme() {
-  if (window.matchMedia('(prefers-color-scheme: light)').matches) return 'light';
+  try {
+    if (window.matchMedia('(prefers-color-scheme: light)').matches) return 'light';
+  } catch (e) {}
   return 'dark';
 }
 
 export function applyTheme(theme) {
-  const resolved = theme === 'system' ? getSystemTheme() : theme;
-  document.documentElement.setAttribute('data-theme', resolved);
-  localStorage.setItem(THEME_KEY, theme);
+  try {
+    const resolved = theme === 'system' ? getSystemTheme() : theme;
+    document.documentElement.setAttribute('data-theme', resolved);
+    localStorage.setItem(THEME_KEY, theme);
+  } catch (e) {}
 }
 
 export function getCurrentTheme() {
-  return localStorage.getItem(THEME_KEY) || 'dark';
+  try {
+    return localStorage.getItem(THEME_KEY) || 'dark';
+  } catch (e) {
+    return 'dark';
+  }
 }
 
 export function initTheme(settingsTheme) {
@@ -21,8 +29,12 @@ export function initTheme(settingsTheme) {
 }
 
 export function toggleTheme() {
-  const resolved = document.documentElement.getAttribute('data-theme');
-  const next = resolved === 'light' ? 'dark' : 'light';
-  applyTheme(next);
-  return next;
+  try {
+    const resolved = document.documentElement.getAttribute('data-theme');
+    const next = resolved === 'light' ? 'dark' : 'light';
+    applyTheme(next);
+    return next;
+  } catch (e) {
+    return 'dark';
+  }
 }
