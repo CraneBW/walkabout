@@ -1,5 +1,6 @@
 """Walkabout FastAPI application."""
 import os
+import sys
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -27,7 +28,7 @@ class _NoCacheStaticFiles(StarletteStaticFiles):
 def create_app() -> FastAPI:
     ensure_dirs()
 
-    app = FastAPI(title="Walkabout", version="0.1.0")
+    app = FastAPI(title="Walkabout", version="0.2.0")
 
     # CORS for dev mode (Vite on :5173)
     app.add_middleware(
@@ -54,7 +55,13 @@ def create_app() -> FastAPI:
     app.mount("/api/traces", _NoCacheStaticFiles(directory=str(TRACES_DIR)), name="traces")
 
     # Serve frontend in production mode
-    frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
+    # When bundled by PyInstaller, sys._MEIPASS points to the temp extraction dir.
+    # In development, resolve relative to this source file.
+    if getattr(sys, 'frozen', False):
+        frontend_dist = Path(sys._MEIPASS) / "frontend" / "dist"
+    else:
+        frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
+
     if frontend_dist.exists():
         app.mount("/assets", _NoCacheStaticFiles(directory=str(frontend_dist / "assets")), name="assets")
 
