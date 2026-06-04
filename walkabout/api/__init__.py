@@ -65,21 +65,21 @@ def _run_trace_inprocess(module_name: str, trace_path: Path, cwd: Path) -> None:
     import importlib
     import json
     from dataclasses import asdict
-    from ..core.execute import execute
 
     old_cwd = os.getcwd()
     old_home = os.environ.get("WALKABOUT_HOME")
+    old_path = sys.path.copy()
     try:
         os.environ["WALKABOUT_HOME"] = str(Path.home() / ".walkabout")
         os.chdir(str(cwd))
 
-        # Ensure workspace is on sys.path
-        if str(cwd) not in sys.path:
-            sys.path.insert(0, str(cwd))
+        # core/ uses bare imports (from execute_util import ...) — needs on sys.path
+        core_dir = str(Path(__file__).parent.parent / "core")
+        for p in [str(cwd), core_dir]:
+            if p not in sys.path:
+                sys.path.insert(0, p)
 
-        mod = importlib.import_module(module_name)
-        if str(mod.__file__) not in sys.path:  # track for visible_paths
-            pass
+        from ..core.execute import execute
 
         trace = execute(module_name=module_name, inspect_all_variables=False)
 
@@ -87,6 +87,7 @@ def _run_trace_inprocess(module_name: str, trace_path: Path, cwd: Path) -> None:
         with open(trace_path, "w") as f:
             json.dump(asdict(trace), f, indent=2)
     finally:
+        sys.path[:] = old_path
         os.chdir(old_cwd)
         if old_home is not None:
             os.environ["WALKABOUT_HOME"] = old_home
