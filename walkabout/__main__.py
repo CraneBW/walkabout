@@ -60,7 +60,7 @@ def main():
     port = settings.get("window", {}).get("port", 8000)
     host = "127.0.0.1"
 
-    print(" Walkabout — Interactive Code Walkthrough Editor")
+    print(" Walkabout -- Interactive Code Walkthrough Editor")
 
     # Load plugins
     pm = PluginManager()
@@ -76,7 +76,7 @@ def main():
     from pathlib import Path
     dist = Path(__file__).parent.parent / "frontend" / "dist" / "index.html"
     if not dist.exists():
-        print("   \u26a0  Frontend not built. First-time setup:")
+        print("   [WARN] Frontend not built. First-time setup:")
         print("      cd frontend && npm install && npm run build")
         print()
 
@@ -84,7 +84,7 @@ def main():
     app = create_app()
     url = f"http://localhost:{port}"
 
-    # Detect headless / WSL — skip GUI, use server-only mode
+    # Detect headless / WSL --skip GUI, use server-only mode
     # Windows always has a display. Linux/macOS check $DISPLAY / $WAYLAND_DISPLAY.
     if sys.platform == "win32":
         has_display = True
@@ -99,18 +99,18 @@ def main():
             pass
 
     if is_wsl:
-        print(f"   WSL2 detected — server starting at:")
-        print(f"   →  {url}")
+        print(f"   WSL2 detected --server starting at:")
+        print(f"   ->  {url}")
         print(f"   Open this URL in your Windows browser. (WSL2 auto-forwards localhost)\n")
         _run_server(app, host, port, log_level="info")
         return
 
     if not has_display:
-        print(f"   Headless mode — server starting at {url}\n")
+        print(f"   Headless mode --server starting at {url}\n")
         _run_server(app, host, port, log_level="info")
         return
 
-    # Has display — try native window
+    # Has display --try native window
     try:
         from walkabout.webview import open_window
     except ImportError:
