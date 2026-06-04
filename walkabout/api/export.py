@@ -18,7 +18,7 @@ class ExportRequest(BaseModel):
     path: str
     content: Optional[str] = None
     title: Optional[str] = None
-    content_only: bool = True  # strip all source code from export
+    content_only: bool = False  # preserve source code and env panel by default
 
 
 RUNNER = Path(__file__).parent.parent / "runner.py"
@@ -147,7 +147,7 @@ def export_and_save(req: ExportRequest) -> dict:
     try:
         trace_path = _run_trace(note_path, module_name)
         title = req.title or module_name
-        export_note(trace_path, html_path, title=title, content_only=req.content_only)
+        export_note(trace_path, html_path, title=title, strip_source=True, content_only=req.content_only)
     except RuntimeError as e:
         raise HTTPException(500, str(e))
 
