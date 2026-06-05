@@ -1,9 +1,11 @@
 """Export API — generate standalone HTML from a walkthrough trace."""
 from pathlib import Path
 from typing import Optional
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+
 from ..config import NOTES_DIR, TRACES_DIR, ensure_dirs, load_settings
 from ..export import export_note
 from . import _run_trace_subprocess
@@ -18,7 +20,7 @@ def _resolve(relpath: str):
     try:
         p.relative_to(NOTES_DIR.resolve())
     except ValueError:
-        raise HTTPException(403, "Invalid path")
+        raise HTTPException(403, "Invalid path") from None
     return p
 
 router = APIRouter(prefix="/api/export", tags=["export"])
@@ -77,7 +79,7 @@ def export_note_endpoint(req: ExportRequest) -> FileResponse:
         title = req.title or module_name
         export_note(trace_path, html_path, title=title, strip_source=False)
     except RuntimeError as e:
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, str(e)) from e
 
     return FileResponse(
         str(html_path),
@@ -119,10 +121,7 @@ def export_and_save(req: ExportRequest) -> dict:
     # Determine export directory from settings (default: ~/.walkabout/exports)
     settings = load_settings()
     export_dir = settings.get("export", {}).get("directory", "") or ""
-    if export_dir:
-        export_path = Path(export_dir)
-    else:
-        export_path = Path.home() / ".walkabout" / "exports"
+    export_path = Path(export_dir) if export_dir else Path.home() / ".walkabout" / "exports"
     export_path.mkdir(parents=True, exist_ok=True)
     html_path = export_path / html_name
 
@@ -132,6 +131,6 @@ def export_and_save(req: ExportRequest) -> dict:
         title = req.title or module_name
         export_note(trace_path, html_path, title=title, strip_source=True, content_only=req.content_only)
     except RuntimeError as e:
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, str(e)) from e
 
     return {"path": str(html_path)}

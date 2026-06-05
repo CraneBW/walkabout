@@ -2,8 +2,10 @@
 import json
 import uuid
 from typing import Optional
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
 from ..config import NOTES_DIR, TRACES_DIR, ensure_dirs
 from . import _run_trace_subprocess
 
@@ -17,7 +19,7 @@ def _resolve(relpath: str):
     try:
         p.relative_to(NOTES_DIR.resolve())
     except ValueError:
-        raise HTTPException(403, "Invalid path")
+        raise HTTPException(403, "Invalid path") from None
     return p
 
 router = APIRouter(prefix="/api/execute", tags=["execute"])

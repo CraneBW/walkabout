@@ -1,14 +1,21 @@
 """Tests for walkabout.core.execute — trace execution engine."""
-import os, sys, json, tempfile
+import dataclasses
+import os
+import sys
 from pathlib import Path
+
 import pytest
 
 # Ensure core modules are importable
 sys.path.insert(0, str(Path(__file__).parent.parent / "walkabout" / "core"))
 
 from walkabout.core.execute import (
-    execute, get_inspect_variables, to_serializable_value,
-    StackElement, Step, Trace,
+    StackElement,
+    Step,
+    Trace,
+    execute,
+    get_inspect_variables,
+    to_serializable_value,
 )
 
 
@@ -84,7 +91,7 @@ class TestStackElement:
 
     def test_frozen(self):
         el = StackElement(path="t.py", line_number=1, function_name="f", code="pass")
-        with pytest.raises(Exception):
+        with pytest.raises(dataclasses.FrozenInstanceError):
             el.path = "other.py"
 
 
@@ -222,7 +229,7 @@ def main():
 
             trace = execute(module_name="file_test", inspect_all_variables=False)
             assert len(trace.files) == 1
-            assert any("file_test.py" in k for k in trace.files.keys())
+            assert any("file_test.py" in k for k in trace.files)
         finally:
             os.chdir(old_cwd)
             sys.path[:] = old_path

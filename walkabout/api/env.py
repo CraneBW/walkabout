@@ -1,9 +1,14 @@
 """Environment management — uv-based Python package installation."""
-import subprocess, os, sys, shutil, json
+import json
+import shutil
+import subprocess
+import sys
 from pathlib import Path
-from typing import Optional, List
+from typing import List, Optional
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
 from ..config import NOTES_DIR
 
 router = APIRouter(prefix="/api/env", tags=["env"])
@@ -100,6 +105,6 @@ def install_packages(req: InstallRequest) -> dict:
     except HTTPException:
         raise
     except subprocess.TimeoutExpired:
-        raise HTTPException(408, "Install timed out")
+        raise HTTPException(408, "Install timed out") from None
     except Exception as e:
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, str(e)) from e

@@ -1,8 +1,8 @@
 """Walkabout API routers and shared utilities."""
 
 import os
-import sys
 import subprocess
+import sys
 from pathlib import Path
 
 RUNNER = Path(__file__).parent.parent / "runner.py"
@@ -52,7 +52,7 @@ def _run_trace_subprocess(module_name: str, trace_path: Path, cwd: Path, timeout
     except subprocess.TimeoutExpired:
         proc.kill()
         proc.wait()
-        raise RuntimeError(f"Execution timed out ({timeout}s limit)")
+        raise RuntimeError(f"Execution timed out ({timeout}s limit)") from None
 
     if proc.returncode != 0:
         raise RuntimeError(stderr.strip() or stdout.strip() or "Execution failed")
@@ -63,7 +63,6 @@ def _run_trace_subprocess(module_name: str, trace_path: Path, cwd: Path, timeout
 
 def _run_trace_inprocess(module_name: str, trace_path: Path, cwd: Path) -> None:
     """Execute a note in-process (used inside PyInstaller bundle)."""
-    import importlib
     import json
     from dataclasses import asdict
 

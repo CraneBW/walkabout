@@ -3,7 +3,13 @@
 Launches as a standalone desktop app with embedded webview.
 No external browser required.
 """
-import sys, os, threading, time, socket, platform
+import contextlib
+import os
+import platform
+import socket
+import sys
+import threading
+import time
 
 
 def _create_bind_socket(host: str, port: int) -> socket.socket:
@@ -23,9 +29,9 @@ def _run_server(app, host: str, port: int, log_level: str = "info",
 
     try:
         sock = _create_bind_socket(host, port)
-    except OSError as e:
+    except OSError:
         print(f"\n   Error: Port {port} is already in use.")
-        print(f"   Or change port in ~/.walkabout/settings.json (window.port)\n")
+        print("   Or change port in ~/.walkabout/settings.json (window.port)\n")
         return
 
     if ready:
@@ -52,7 +58,7 @@ def _wait_for_server(port: int, timeout: float = 5.0) -> bool:
 
 
 def main():
-    from walkabout.config import NOTES_DIR, TRACES_DIR, FILES_DIR, load_settings
+    from walkabout.config import NOTES_DIR, load_settings
     from walkabout.plugins.manager import PluginManager
 
     settings = load_settings()
@@ -68,7 +74,7 @@ def main():
         print(f"   Plugins: {', '.join(p.name for p in pm.plugins)}")
 
     print(f"   Workspace: {NOTES_DIR}")
-    print(f"   Settings:  ~/.walkabout/settings.json")
+    print("   Settings:  ~/.walkabout/settings.json")
     print()
 
     # Check frontend
@@ -92,15 +98,13 @@ def main():
 
     is_wsl = bool(os.environ.get("WSL_DISTRO_NAME", ""))
     if not is_wsl:
-        try:
+        with contextlib.suppress(Exception):
             is_wsl = "microsoft" in platform.uname().release.lower()
-        except Exception:
-            pass
 
     if is_wsl:
-        print(f"   WSL2 detected --server starting at:")
+        print("   WSL2 detected --server starting at:")
         print(f"   ->  {url}")
-        print(f"   Open this URL in your Windows browser. (WSL2 auto-forwards localhost)\n")
+        print("   Open this URL in your Windows browser. (WSL2 auto-forwards localhost)\n")
         _run_server(app, host, port, log_level="info")
         return
 

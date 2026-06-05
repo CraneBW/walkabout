@@ -2,8 +2,10 @@
 import os
 from pathlib import Path
 from typing import Optional
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
 from ..config import NOTES_DIR, TRACES_DIR, ensure_dirs
 
 router = APIRouter(prefix="/api/notes", tags=["notes"])
@@ -55,7 +57,7 @@ def _resolve(relpath: str) -> Path:
     try:
         p.relative_to(NOTES_DIR.resolve())
     except ValueError:
-        raise HTTPException(400, "Path traversal not allowed")
+        raise HTTPException(400, "Path traversal not allowed") from None
     return p
 
 

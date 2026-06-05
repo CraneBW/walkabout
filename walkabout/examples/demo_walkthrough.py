@@ -13,8 +13,7 @@ Walkabout 功能演示 — 涵盖核心特性与边界情况
   print(f'Trace generated: {len(trace.steps)} steps')
   "
 """
-from execute_util import text, image, link, system_text
-
+from execute_util import link, system_text, text
 
 # ── 1. 基本 Markdown 渲染 ──────────────────────────────────────
 

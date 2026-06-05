@@ -1,6 +1,9 @@
 """Shared test fixtures for Walkabout."""
-import os, sys, json, tempfile, shutil
+import shutil
+import sys
+import tempfile
 from pathlib import Path
+
 import pytest
 
 # Ensure the project root is on sys.path

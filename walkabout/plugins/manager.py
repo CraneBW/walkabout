@@ -1,8 +1,10 @@
 """Plugin discovery and lifecycle management."""
-import importlib, sys, os, logging
-from pathlib import Path
-from .base import WalkaboutPlugin
+import importlib
+import logging
+import sys
+
 from ..config import PLUGINS_DIR, ensure_dirs
+from .base import WalkaboutPlugin
 
 _log = logging.getLogger(__name__)
 

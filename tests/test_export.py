@@ -1,9 +1,10 @@
 """Tests for walkabout.export — trace-to-HTML export engine."""
-import json, tempfile, os
+import json
+import os
+import tempfile
 from pathlib import Path
-import pytest
 
-from walkabout.export import export_note, _clean_trace, generate_html
+from walkabout.export import _clean_trace, export_note, generate_html
 
 
 def _make_sample_trace():

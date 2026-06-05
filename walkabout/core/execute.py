@@ -1,10 +1,12 @@
 from __future__ import annotations
+
 import argparse
 import importlib
 import inspect
-import sys
 import json
+import sys
 import traceback
+
 try:
     import torch
 except ImportError:
@@ -13,12 +15,13 @@ try:
     import sympy
 except ImportError:
     sympy = None
-from dataclasses import dataclass, asdict, field, is_dataclass, fields
 import os
 import re
+from dataclasses import asdict, dataclass, field, fields, is_dataclass
+from typing import Any
+
 from walkabout.core.execute_util import Rendering, pop_renderings
 from walkabout.core.file_util import ensure_directory_exists, relativize
-from typing import Any
 
 
 @dataclass(frozen=True)
@@ -149,7 +152,7 @@ def execute(module_name: str, inspect_all_variables: bool) -> Trace:
             if i < len(items):
                 _engine_paths.add(items[i].filename)
         return stack
-    
+
     def trace_func(frame, event, arg):
         """
         trace_func and local_trace_func are called on various lines of code when executed.
@@ -183,7 +186,7 @@ def execute(module_name: str, inspect_all_variables: bool) -> Trace:
                 stepovers.pop()
             else:
                 stepovers.append((item.path, item.line_number))
-        
+
         # Skip everything that is strictly under stepovers
         if any(stepover[0] == item.path and stepover[1] == item.line_number for stepover in stepovers for item in stack[:-1]):
             return trace_func
@@ -219,17 +222,14 @@ def execute(module_name: str, inspect_all_variables: bool) -> Trace:
 
             # Update the environment with the actual values
             locals = frame.f_locals
-            if inspect_all_variables:
-                vars = locals.keys()
-            else:
-                vars = get_inspect_variables(item.code)
+            vars = locals.keys() if inspect_all_variables else get_inspect_variables(item.code)
             for var in vars:
                 if var in locals:
                     close_step.env[var] = to_serializable_value(locals[var])
                 else:
                     print(f"WARNING: variable {var} not found in locals")
                 print(f"    env: {var} = {close_step.env.get(var)}", file=real_stdout)
-        
+
             # Capture the renderings of the last line
             close_step.renderings = pop_renderings()
 
@@ -238,7 +238,7 @@ def execute(module_name: str, inspect_all_variables: bool) -> Trace:
 
         # Pass control to local_trace_func to update the environment
         return local_trace_func
-    
+
     # Run the module
     module = importlib.import_module(module_name)
     visible_paths.append(inspect.getfile(module))

@@ -1,9 +1,13 @@
 """Settings API — schema, get/set, validation, reset."""
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
 from ..config import (
-    SETTINGS_SCHEMA, load_settings, save_settings,
-    get_setting, set_setting, get_defaults
+    SETTINGS_SCHEMA,
+    get_defaults,
+    load_settings,
+    save_settings,
+    set_setting,
 )
 
 router = APIRouter(prefix="/api/config", tags=["config"])

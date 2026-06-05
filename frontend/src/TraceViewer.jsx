@@ -7,6 +7,21 @@ import DOMPurify from 'dompurify';
 import { getLast } from './utils';
 import { marked } from 'marked';
 
+function renderError(error) {
+  return (
+    <div style={{
+      color: '#e74c3c',
+      padding: '20px',
+      background: '#fff5f5',
+      border: '1px solid #ffd0d0',
+      borderRadius: '6px',
+      margin: '10px 0'
+    }}>
+      {error}
+    </div>
+  );
+}
+
 function TraceViewer() {
   // Parse URL params
   const urlParams = new URLSearchParams(window.location.search)
@@ -164,10 +179,6 @@ function TraceViewer() {
       const item = getLast(step.stack);
       return item.path === targetSourcePath && item.line_number === targetLineNumber;
     });
-    if (currentStepIndex !== -1) {
-      currentStep = trace.steps[currentStepIndex];
-      currentStackElement = getLast(currentStep.stack);
-    }
   }
 
   const renderedEnv = currentStepIndex !== null ? renderEnv({trace, currentStepIndex}) : null;

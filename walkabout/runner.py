@@ -3,8 +3,11 @@
 Usage: python runner.py --workspace NOTES_DIR --module my_note --output trace.json
 """
 import argparse
-import os, json, sys
+import json
+import os
+import sys
 from dataclasses import asdict
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -42,7 +45,7 @@ def main():
 
     # Import the module
     import importlib
-    mod = importlib.import_module(args.module)
+    importlib.import_module(args.module)
 
     # Execute with tracing
     from walkabout.core.execute import execute

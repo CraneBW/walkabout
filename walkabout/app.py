@@ -1,19 +1,18 @@
 """Walkabout FastAPI application."""
-import os
 import sys
 from pathlib import Path
+
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import FileResponse
 from starlette.staticfiles import StaticFiles as StarletteStaticFiles
 
-from .config import NOTES_DIR, TRACES_DIR, FILES_DIR, ensure_dirs
-from .api.notes import router as notes_router
-from .api.execute import router as execute_router
-from .api.env import router as env_router
 from .api.config import router as config_router
+from .api.env import router as env_router
+from .api.execute import router as execute_router
 from .api.export import router as export_router
+from .api.notes import router as notes_router
+from .config import TRACES_DIR, ensure_dirs
 from .plugins.manager import PluginManager
 
 

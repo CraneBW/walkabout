@@ -1,14 +1,18 @@
 """Tests for walkabout.config — settings engine, schema, defaults, merge."""
-import os, json, sys
-from pathlib import Path
-import pytest
+import json
+import sys
 
 from walkabout.config import (
-    get_defaults, load_settings, save_settings,
-    get_setting, set_setting,
-    _deep_merge, _diff_settings,
-    _get_venv_python, get_python_path,
-    SETTINGS_SCHEMA, ensure_dirs,
+    SETTINGS_SCHEMA,
+    _deep_merge,
+    _diff_settings,
+    _get_venv_python,
+    get_defaults,
+    get_python_path,
+    get_setting,
+    load_settings,
+    save_settings,
+    set_setting,
 )
 
 

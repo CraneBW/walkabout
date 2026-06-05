@@ -1,8 +1,9 @@
+import hashlib
 import os
 import re
-import hashlib
 import shutil
 from io import BytesIO
+
 import requests
 
 

@@ -1,6 +1,6 @@
 """Embedded webview window — no external browser needed."""
-import sys
 import os
+import sys
 
 
 def open_window(url: str = "http://localhost:8000"):
@@ -16,34 +16,30 @@ def open_window(url: str = "http://localhost:8000"):
     # no Qt backend (PyQt5/PySide6) is available.
     # Also suppress stderr during the attempt to hide pywebview's internal
     # "[pywebview] QT cannot be loaded" noise.
+    old_stderr = sys.stderr
     try:
         # Redirect stderr to /dev/null to suppress pywebview/qtpy noise
-        devnull = open(os.devnull, 'w')
-        old_stderr = sys.stderr
-        sys.stderr = devnull
+        with open(os.devnull, 'w') as devnull:
+            sys.stderr = devnull
 
-        import webview
-        webview.create_window(
-            "Walkabout — Interactive Code Walkthrough",
-            url,
-            width=1400, height=900,
-            min_size=(900, 600),
-            text_select=True,
-        )
-        webview.start()
-        return True
+            import webview
+            webview.create_window(
+                "Walkabout — Interactive Code Walkthrough",
+                url,
+                width=1400, height=900,
+                min_size=(900, 600),
+                text_select=True,
+            )
+            webview.start()
+            return True
     except Exception:
         pass
     finally:
         sys.stderr = old_stderr
-        try:
-            devnull.close()
-        except Exception:
-            pass
 
     # Try PyQt5/PySide6 as fallback
     try:
-        from PyQt5 import QtWebEngineWidgets, QtWidgets, QtCore
+        from PyQt5 import QtCore, QtWebEngineWidgets, QtWidgets
         app = QtWidgets.QApplication(sys.argv)
         web = QtWebEngineWidgets.QWebEngineView()
         web.load(QtCore.QUrl(url))

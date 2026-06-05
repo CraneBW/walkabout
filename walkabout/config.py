@@ -1,5 +1,9 @@
 """Walkabout configuration — VS Code-style settings with schema, defaults, validation."""
-import os, sys, json, shutil, copy
+import copy
+import json
+import os
+import shutil
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -121,7 +125,7 @@ def get_setting(key: str) -> Any:
 
 def set_setting(key: str, value: Any):
     """Set a single setting and persist."""
-    settings = load_settings()
+    _ = load_settings()  # triggers side effect if needed
     # Also write to user overrides
     user = {}
     if SETTINGS_FILE.exists():

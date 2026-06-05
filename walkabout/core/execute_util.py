@@ -4,16 +4,18 @@ which will be shown in place of the line of code in the interface.
 """
 from __future__ import annotations
 
-
-import os
-import sys
 import inspect
+import os
 import re
 import subprocess
-from walkabout.core.file_util import cached, relativize
+import sys
 from dataclasses import dataclass
+
+from walkabout.core.file_util import cached, relativize
+
 # arxiv_util imported lazily inside link()
 from walkabout.core.reference import Reference
+
 
 @dataclass(frozen=True)
 class CodeLocation:
@@ -98,7 +100,7 @@ def link(arg: type | Reference | str | None = None, style: dict | None = None, *
         anchor = CodeLocation(relativize(path), line_number)
         _current_renderings.append(Rendering(type="link", data=arg.__name__, style=style, internal_link=anchor))
     elif isinstance(arg, str):
-        from walkabout.core.arxiv_util import is_arxiv_link, arxiv_reference
+        from walkabout.core.arxiv_util import arxiv_reference, is_arxiv_link
         if is_arxiv_link(arg):
             try:
                 reference = arxiv_reference(arg)

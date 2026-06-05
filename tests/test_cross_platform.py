@@ -1,6 +1,9 @@
 """Tests for cross-platform compatibility (Linux, Windows, macOS)."""
-import os, sys, platform as _platform
+import os
+import platform as _platform
+import sys
 from pathlib import Path
+
 import pytest
 
 
@@ -23,7 +26,7 @@ class TestPlatformDetection:
     def test_macos_always_has_display(self):
         """macOS (darwin) should always have display True."""
         is_darwin = sys.platform == "darwin"
-        has_display = True if sys.platform in ("win32", "darwin") else False
+        has_display = sys.platform in ("win32", "darwin")
         if is_darwin:
             assert has_display
 
@@ -94,9 +97,9 @@ class TestEncoding:
             import importlib
             mod = importlib.import_module(mod_name)
             src = Path(mod.__file__).read_text(encoding="utf-8")
-            open_calls = [l for l in src.split("\n") if "open(" in l and "encoding" not in l
-                         and "webbrowser" not in l and "os.devnull" not in l
-                         and "devnull" not in l and "wb" not in l]
+            open_calls = [ln for ln in src.split("\n") if "open(" in ln and "encoding" not in ln
+                         and "webbrowser" not in ln and "os.devnull" not in ln
+                         and "devnull" not in ln and "wb" not in ln]
             for line in open_calls:
                 if ('"w"' in line or '"r"' in line or "'w'" in line or "'r'" in line) \
                         and "subprocess" not in line and "BytesIO" not in line:
