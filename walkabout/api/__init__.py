@@ -94,6 +94,26 @@ def _run_trace_inprocess(module_name: str, trace_path: Path, cwd: Path) -> None:
             if meipass not in sys.path:
                 sys.path.insert(0, meipass)
 
+        # Pre-import the note module via file path to bypass PyInstaller's
+        # FrozenImporter, which may intercept stdlib module names (e.g.,
+        # Python's "test" package shadows a user note named test.py).
+        import importlib.util as _importlib_util
+        _parts = module_name.replace("/", ".").split(".")
+        _note_file = cwd.joinpath(*_parts)
+        if _note_file.is_dir():
+            _note_file = _note_file / "__init__.py"
+        else:
+            _note_file = _note_file.with_suffix(".py")
+        if not _note_file.exists():
+            raise ModuleNotFoundError(
+                f"Note file not found: {_note_file}. "
+                f"Make sure the note exists in the workspace."
+            )
+        _spec = _importlib_util.spec_from_file_location(module_name, str(_note_file))
+        _mod = _importlib_util.module_from_spec(_spec)
+        sys.modules[module_name] = _mod
+        _spec.loader.exec_module(_mod)
+
         from ..core.execute import execute
 
         trace = execute(module_name=module_name, inspect_all_variables=False)
