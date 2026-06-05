@@ -69,13 +69,19 @@ def _run_trace_inprocess(module_name: str, trace_path: Path, cwd: Path) -> None:
     old_cwd = os.getcwd()
     old_home = os.environ.get("WALKABOUT_HOME")
     old_path = sys.path.copy()
+
+    # Resolve core_dir BEFORE os.chdir() — __file__ may be relative
+    # inside a PyInstaller bundle, and chdir would break resolution.
+    core_dir = str(Path(__file__).resolve().parent.parent / "core")
+
     try:
         os.environ["WALKABOUT_HOME"] = str(Path.home() / ".walkabout")
+        # Ensure the workspace directory exists before chdir
+        cwd.mkdir(parents=True, exist_ok=True)
         os.chdir(str(cwd))
 
         # User walkthrough scripts use ``from execute_util import ...``
         # (bare import).  The core/ directory must be on sys.path for this.
-        core_dir = str(Path(__file__).parent.parent / "core")
         for p in [str(cwd), core_dir]:
             if p not in sys.path:
                 sys.path.insert(0, p)
