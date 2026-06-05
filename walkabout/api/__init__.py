@@ -74,17 +74,25 @@ def _run_trace_inprocess(module_name: str, trace_path: Path, cwd: Path) -> None:
     # inside a PyInstaller bundle, and chdir would break resolution.
     core_dir = str(Path(__file__).resolve().parent.parent / "core")
 
+    # Resolve cwd to canonical form (important on Windows where Path()
+    # and Path().resolve() may differ in case/drive formatting).
+    cwd_resolved = str(cwd.resolve())
+    cwd.mkdir(parents=True, exist_ok=True)
+
     try:
         os.environ["WALKABOUT_HOME"] = str(Path.home() / ".walkabout")
-        # Ensure the workspace directory exists before chdir
-        cwd.mkdir(parents=True, exist_ok=True)
-        os.chdir(str(cwd))
+        os.chdir(cwd_resolved)
 
         # User walkthrough scripts use ``from execute_util import ...``
         # (bare import).  The core/ directory must be on sys.path for this.
-        for p in [str(cwd), core_dir]:
+        # In PyInstaller, also add sys._MEIPASS for absolute imports.
+        for p in [cwd_resolved, core_dir]:
             if p not in sys.path:
                 sys.path.insert(0, p)
+        if getattr(sys, 'frozen', False):
+            meipass = str(Path(sys._MEIPASS))
+            if meipass not in sys.path:
+                sys.path.insert(0, meipass)
 
         from ..core.execute import execute
 
@@ -93,6 +101,23 @@ def _run_trace_inprocess(module_name: str, trace_path: Path, cwd: Path) -> None:
         trace_path.parent.mkdir(parents=True, exist_ok=True)
         with open(trace_path, "w", encoding="utf-8") as f:
             json.dump(asdict(trace), f, indent=2)
+    except Exception:
+        # On Windows/PyInstaller, provide diagnostic info for debugging
+        import traceback as _traceback
+        print(f"[_run_trace_inprocess] ERROR executing '{module_name}'", file=sys.stderr)
+        print(f"  cwd (original): {cwd}", file=sys.stderr)
+        print(f"  cwd (resolved): {cwd_resolved}", file=sys.stderr)
+        print(f"  cwd exists: {cwd.is_dir()}", file=sys.stderr)
+        print(f"  core_dir: {core_dir}", file=sys.stderr)
+        print(f"  core_dir exists: {os.path.isdir(core_dir)}", file=sys.stderr)
+        print(f"  sys.path (first 5): {sys.path[:5]}", file=sys.stderr)
+        if cwd.is_dir():
+            print(f"  files in cwd: {list(cwd.iterdir())[:20]}", file=sys.stderr)
+        print(f"  frozen: {getattr(sys, 'frozen', False)}", file=sys.stderr)
+        if getattr(sys, 'frozen', False):
+            print(f"  _MEIPASS: {getattr(sys, '_MEIPASS', 'N/A')}", file=sys.stderr)
+        _traceback.print_exc(file=sys.stderr)
+        raise
     finally:
         sys.path[:] = old_path
         os.chdir(old_cwd)
