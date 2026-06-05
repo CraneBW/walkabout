@@ -62,6 +62,8 @@ def generate_html(
     else:
         files: dict[str, str] = trace.get("files", {})
     trace_json = json.dumps(trace, ensure_ascii=False, indent=2)
+    # Escape </ to prevent XSS via script tag injection in trace data
+    trace_json = trace_json.replace("</", "<\\/")
     file_entries = "".join(
         f'<option value="{k}">{k}</option>' for k in files
     )

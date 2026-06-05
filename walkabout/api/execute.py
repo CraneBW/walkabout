@@ -7,6 +7,14 @@ from pydantic import BaseModel
 from ..config import NOTES_DIR, TRACES_DIR, ensure_dirs
 from . import _run_trace_subprocess
 
+
+def _resolve(relpath: str):
+    """Resolve *relpath* against NOTES_DIR, rejecting path traversal."""
+    p = (NOTES_DIR / relpath).resolve()
+    if not str(p).startswith(str(NOTES_DIR.resolve())):
+        raise HTTPException(403, "Invalid path")
+    return p
+
 router = APIRouter(prefix="/api/execute", tags=["execute"])
 
 
@@ -27,7 +35,7 @@ def execute_note(req: ExecuteRequest) -> ExecuteResponse:
     ensure_dirs()
 
     # Auto-save if content provided
-    note_path = NOTES_DIR / req.path
+    note_path = _resolve(req.path)
     note_path.parent.mkdir(parents=True, exist_ok=True)
     if req.content is not None:
         note_path.write_text(req.content, encoding="utf-8")

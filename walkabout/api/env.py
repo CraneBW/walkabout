@@ -1,5 +1,5 @@
 """Environment management — uv-based Python package installation."""
-import subprocess, os, shutil, json
+import subprocess, os, sys, shutil, json
 from pathlib import Path
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException

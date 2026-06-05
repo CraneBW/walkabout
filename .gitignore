@@ -7,3 +7,8 @@ frontend/dist/
 .claude/settings.local.json
 .serena/
 .playwright-mcp/
+dist/
+build/
+*.spec
+.DS_Store
+Thumbs.db

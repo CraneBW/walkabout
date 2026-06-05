@@ -44,6 +44,8 @@ def update_single(body: SettingUpdate) -> dict:
             if "enum" in item and body.value not in item["enum"]:
                 raise HTTPException(400, f"Value must be one of: {item['enum']}")
             break
+    else:
+        raise HTTPException(400, f"Unknown setting: '{body.key}'")
     set_setting(body.key, body.value)
     return {"ok": True, "key": body.key, "value": body.value}
 

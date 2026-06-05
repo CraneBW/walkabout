@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github.css';
+import DOMPurify from 'dompurify';
 import { getLast } from './utils';
 import { marked } from 'marked';
 
@@ -595,6 +596,7 @@ function MarkdownRenderer({ content, style }) {
     let markdown = marked(content);
     markdown = markdown.replace(/\n$/, '');
     markdown = markdown.replace(/^<p>/g, '').replace(/<\/p>$/g, '');
+    markdown = DOMPurify.sanitize(markdown);
 
     // Add the trailing whitespace back
     markdown = markdown + trailingWhitespace;

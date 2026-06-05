@@ -111,8 +111,6 @@ def link(arg: type | Reference | str | None = None, style: dict | None = None, *
     else:
         raise ValueError(f"Invalid argument: {arg}")
 
-    style = {"color": "gray"}
-
 
 ############################################################
 

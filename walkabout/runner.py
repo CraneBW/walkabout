@@ -3,7 +3,7 @@
 Usage: python runner.py --workspace NOTES_DIR --module my_note --output trace.json
 """
 import argparse
-import os, json, sys, os
+import os, json, sys
 from dataclasses import asdict
 
 def main():

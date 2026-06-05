@@ -94,8 +94,11 @@ def load_settings() -> dict:
     defaults = get_defaults()
     user = {}
     if SETTINGS_FILE.exists():
-        with open(SETTINGS_FILE, encoding="utf-8") as f:
-            user = json.load(f)
+        try:
+            with open(SETTINGS_FILE, encoding="utf-8") as f:
+                user = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            pass  # Corrupt settings file — use defaults
     return _deep_merge(defaults, user)
 
 
