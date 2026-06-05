@@ -353,9 +353,16 @@ export default function EditorPage() {
             />
           ) : (
             <div className="welcome">
+              <div className="welcome-icon">?</div>
               <h2>Walkabout</h2>
-              <p>Select a note from the sidebar or create a new one.</p>
-              <p className="welcome-hint">📦 Click the package icon to install Python dependencies via uv.</p>
+              <p>Interactive code walkthrough editor. Select a note from the sidebar to begin, or create a new one.</p>
+              <div className="welcome-shortcuts">
+                <span className="welcome-kbd">Ctrl+N</span> New
+                <span className="welcome-kbd">Ctrl+S</span> Save
+                <span className="welcome-kbd">Ctrl+Enter</span> Run
+                <span className="welcome-kbd">F11</span> Zen
+              </div>
+              <p className="welcome-hint">Click the package icon in the toolbar to install Python dependencies.</p>
             </div>
           )}
         </div>
