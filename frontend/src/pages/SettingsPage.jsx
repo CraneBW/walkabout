@@ -45,6 +45,8 @@ export default function SettingsPage() {
       if (key === 'appearance.theme') {
         applyTheme(value);
       }
+      // Broadcast to other tabs/components so settings take effect without refresh
+      window.postMessage({ type: 'settings-changed', key, value }, '*');
     } catch (e) {
       console.error(e);
     }

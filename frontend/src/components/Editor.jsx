@@ -5,9 +5,10 @@ function getEditorTheme() {
   return theme === 'light' ? 'vs' : 'vs-dark';
 }
 
-export default function Editor({ content, onChange }) {
+export default function Editor({ content, onChange, settings }) {
   const [Monaco, setMonaco] = useState(null);
   const [editorTheme, setEditorTheme] = useState(getEditorTheme());
+  const fontSize = settings?.fontSize ?? 14;
 
   // Dynamically import monaco-editor to code-split ~5MB from the main chunk,
   // then configure @monaco-editor/react to use the local bundle instead of CDN
@@ -54,7 +55,7 @@ export default function Editor({ content, onChange }) {
         value={content}
         onChange={(v) => onChange(v || '')}
         options={{
-          fontSize: 14,
+          fontSize,
           lineNumbers: 'on',
           minimap: { enabled: false },
           scrollBeyondLastLine: false,

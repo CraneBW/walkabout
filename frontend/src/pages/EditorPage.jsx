@@ -35,6 +35,32 @@ export default function EditorPage() {
   // Theme
   const [currentTheme, setCurrentTheme] = useState(getCurrentTheme());
 
+  // Editor settings (fontSize, etc.) — initialized from API and kept in sync via postMessage
+  const [editorSettings, setEditorSettings] = useState({ fontSize: 14 });
+
+  useEffect(() => {
+    axios.get('/api/config').then(r => {
+      const fontSize = r.data?.editor?.fontSize;
+      if (fontSize) {
+        setEditorSettings({ fontSize });
+      }
+    }).catch(() => {});
+  }, []);
+
+  // Listen for settings changes broadcast from SettingsPage
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.data?.type === 'settings-changed' && e.data?.key?.startsWith('editor.')) {
+        const { key, value } = e.data;
+        if (key === 'editor.fontSize') {
+          setEditorSettings({ fontSize: value });
+        }
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
   // Toast notifications
   const [toast, setToast] = useState(null);
 
@@ -352,6 +378,7 @@ export default function EditorPage() {
             <Editor
               content={content}
               onChange={(v) => { setContent(v); setDirty(true); }}
+              settings={editorSettings}
             />
           ) : (
             <div className="welcome">
