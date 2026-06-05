@@ -66,10 +66,14 @@
 - **现象**: TraceViewer 内部使用 `useNavigate()` 依赖上层 `BrowserRouter`。如果作为独立组件导出到其他项目，缺少 Router 包裹会崩溃。
 - **修复方向**: 将 URL 导航抽象为 props callback，移除对 react-router 的直接依赖。
 
-### B7. 设置变更后编辑器/查看器不会热更新
-- **文件**: 前端 `EditorPage.jsx`, `Editor.jsx`
-- **现象**: 修改 `editor.fontSize` 或 `editor.theme` 后需刷新页面才生效。
-- **修复方向**: SettingsPage 通过 `window.postMessage` 通知 EditorPage 重新读取配置，或使用 React Context 全局共享设置状态。
+### B7. 设置变更后编辑器/查看器不会热更新（已修复）
+- **文件**: 前端 `EditorPage.jsx`, `Editor.jsx`, `SettingsPage.jsx`
+- **状态**: 已修复 (#51c9365, #f11fb56)
+- **现象**: 修改 `editor.fontSize` 或 `editor.theme` 后需刷新页面才生效。工具栏切换主题后进入设置页再返回，主题回退到旧值。
+- **修复**:
+  - Editor.jsx 接受 `settings` prop 实现 fontSize 热更新。
+  - EditorPage 通过 `window.postMessage` 监听 SettingsPage 设置变更。
+  - `handleToggleTheme()` 增加 `axios.post('/api/config/set')` 同步保存到 API，防止页面导航后从 API 拉取旧值覆盖。
 
 ### B8. pywebview 在 WSL2 中不可用
 - **文件**: `walkabout/webview.py`, `walkabout/__main__.py`
@@ -77,7 +81,26 @@
 - **当前方案**: try/except 回退到系统浏览器。`open_window()` 不再内嵌 uvicorn 服务，避免与 `__main__.py` 的服务器线程冲突。
 - **修复方向**: 检测 `$DISPLAY` 环境变量，在无 GUI 时打印明确提示并自动降级到浏览器模式，同时提供 `--no-gui` CLI flag。
 
-### B9. 列表推导式中 @inspect 变量定位失败
+### B13. Windows PyInstaller `import test` 失败 — stdlib test 包与用户笔记冲突（已修复）
+- **文件**: `walkabout/api/__init__.py`
+- **状态**: 已修复 (#864e10f)
+- **现象**: Windows 端执行任何名为 `test.py` 的笔记时报 `ModuleNotFoundError: No module named 'test'`。
+- **根因**: Python stdlib 的 `test` 包被 PyInstaller 部分打包，FrozenImporter 在 sys.path 之前拦截 `import test`。
+- **修复**: `_run_trace_inprocess` 中用 `importlib.util.spec_from_file_location()` 从绝对文件路径加载笔记模块，注册到 sys.modules，绕过 PyInstaller import hook。
+
+### B14. PyInstaller in-process core_dir 路径解析错误（已修复）
+- **文件**: `walkabout/api/__init__.py`
+- **状态**: 已修复 (#f1f23da, #afccd8b)
+- **现象**: Windows 端执行笔记时 core_dir 指向错误位置（`<NOTES_DIR>/walkabout/core` 而非 `<MEIPASS>/walkabout/core`），导致 execute_util 导入失败。
+- **根因**: `Path(__file__)` 在 `os.chdir()` 之后解析，PyInstaller 中 `__file__` 为相对路径。
+- **修复**: core_dir 用 `.resolve()` 在 `os.chdir()` 之前解析；cwd 用 `.resolve()` 规范路径；异常时打印完整诊断信息。
+
+### B15. View 视图不渲染 — 裸导入模块双例（已修复）
+- **文件**: `walkabout/api/__init__.py`
+- **状态**: 已修复 (#6d81c72)
+- **现象**: View 标签页显示原始源代码而非渲染后的 Markdown 输出。
+- **根因**: 用户代码 `from execute_util import text` 和引擎代码 `from walkabout.core.execute_util import pop_renderings` 解析为两个不同 Python 模块对象，`_current_renderings` 列表也不同。
+- **修复**: 注册 `sys.modules['execute_util']` = `sys.modules['walkabout.core.execute_util']`，确保裸导入和包导入共享同一模块对象。
 - **文件**: `walkabout/core/execute.py`
 - **现象**: 对列表推导式的结果变量使用 `@inspect`（如 `squares = [x*x for x in range(5)]  # @inspect squares`），local_trace_func 被列表推导的内部作用域触发多次，每次 `squares` 在 locals 中不可见，产生多个 `WARNING: variable squares not found in locals` 噪音。
 - **根因**: 列表推导式创建了隐式函数作用域，`local_trace_func` 在该作用域内无法访问外层函数的 `squares` 变量，直到推导完成后才可见。
@@ -143,16 +166,17 @@
 - 响应式布局 + 触摸友好的导航按钮。
 - 预计: 1 周。
 
-### F11. 测试套件
-- 后端: pytest (`tests/api/`)
-- 前端: Vitest + React Testing Library (`frontend/src/__tests__/`)
-- E2E: Playwright (编辑→执行→回放完整链路)
-- 预计: 2 周。
+### F11. 测试套件（已完成）
+- ✅ 后端 pytest (167 tests): config (30), execute (18), export (8), cross_platform (19), windows_compat (68), inprocess (24)
+- ✅ 前端 Vitest + jsdom (42 tests): theme (23), utils (9), api (10)
+- 待补: E2E Playwright (编辑→执行→回放完整链路)
+- 共 209 个测试，167 passed, 2 skipped, 1 xfailed (py) + 42 passed (js)
 
-### F12. CI/CD（部分完成）
+### F12. CI/CD（已完成）
 - ✅ GitHub Actions Release 工作流: tag push → PyInstaller build → 上传 Linux/Windows 包
-- 待补: lint (ruff + eslint) → test (pytest + vitest) → publish PyPI
-- 预计: 2 天。
+- ✅ `.github/workflows/ci.yml`: push/PR 触发 lint (ruff + eslint) + test (pytest + vitest)
+- 待补: publish PyPI
+- 预计: 1 天。
 
 ### F13. CLI 模式
 - `walkabout run my_script.py` — 命令行直接执行 walkthrough 并输出 trace JSON（无需 GUI）。
