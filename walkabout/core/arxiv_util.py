@@ -27,7 +27,7 @@ def arxiv_reference(url: str, **kwargs) -> Reference:
         raise ValueError(f"Cannot handle this URL: {url}")
     paper_id = m.group(1)
 
-    metadata_url = f"http://export.arxiv.org/api/query?id_list={paper_id}"
+    metadata_url = f"https://export.arxiv.org/api/query?id_list={paper_id}"
     metadata_path = cached(metadata_url, "arxiv")
     with open(metadata_path, "r", encoding="utf-8") as f:
         contents = f.read()

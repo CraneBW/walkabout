@@ -246,7 +246,10 @@ def execute(module_name: str, inspect_all_variables: bool) -> Trace:
     module.main()
     sys.settrace(None)
 
-    files = {relativize(path): open(path, encoding="utf-8").read() for path in visible_paths}
+    files = {}
+    for path in visible_paths:
+        with open(path, encoding="utf-8") as f:
+            files[relativize(path)] = f.read()
     trace = Trace(steps=steps, files=files)
     return trace
 

@@ -7,9 +7,8 @@ import requests
 
 
 def ensure_directory_exists(path: str):
-    """Create directory at `path` if it doesn't already exist."""
-    if not os.path.exists(path):
-        os.mkdir(path)
+    """Create directory at `path` and any missing parents."""
+    os.makedirs(path, exist_ok=True)
 
 
 def download_file(url: str, filename: str):

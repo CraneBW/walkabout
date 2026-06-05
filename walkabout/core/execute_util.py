@@ -6,6 +6,7 @@ from __future__ import annotations
 
 
 import os
+import sys
 import inspect
 import re
 import subprocess
@@ -125,7 +126,10 @@ def pop_renderings() -> list[Rendering]:
 
 
 def system_text(command: list[str]):
-    output = subprocess.check_output(command).decode('utf-8')
+    kwargs = {"text": True, "timeout": 30}
+    if sys.platform == "win32":
+        kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+    output = subprocess.check_output(command, **kwargs)
     output = remove_ansi_escape_sequences(output)
     text(output, verbatim=True)
 

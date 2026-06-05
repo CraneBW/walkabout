@@ -42,7 +42,7 @@ def _get_system_python() -> str:
     venv = _get_venv_python()
     if venv:
         return venv
-    return shutil.which("python3") or shutil.which("python") or "python3"
+    return shutil.which("python3") or shutil.which("python") or ("python" if sys.platform == "win32" else "python3")
 
 
 @router.get("")

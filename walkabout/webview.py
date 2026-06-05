@@ -66,6 +66,8 @@ def open_window(url: str = "http://localhost:8000"):
 
 def is_gui_available() -> bool:
     """Check if we can show a GUI window."""
-    if sys.platform == "linux" and not os.environ.get("DISPLAY"):
+    if sys.platform == "linux" and not (
+        os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
+    ):
         return False
     return True

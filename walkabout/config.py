@@ -168,7 +168,7 @@ def get_python_path() -> str:
         p = shutil.which(cmd)
         if p:
             return p
-    return "python3"
+    return "python" if sys.platform == "win32" else "python3"
 
 
 def set_python_path(path: str):

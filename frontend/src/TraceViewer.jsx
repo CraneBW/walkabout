@@ -412,7 +412,8 @@ function renderValue(value) {
 }
 
 function makeProgressBar(currentStepIndex, totalSteps) {
-  const progressPercentage = currentStepIndex !== null ? (currentStepIndex / (totalSteps - 1)) * 100 : 0;
+  const denominator = totalSteps > 1 ? totalSteps - 1 : 1;
+  const progressPercentage = currentStepIndex !== null ? (currentStepIndex / denominator) * 100 : 0;
   const stepProgress = currentStepIndex !== null ? `${currentStepIndex + 1} / ${totalSteps}` : null;
   return (
     <div className="progress-bar" title={stepProgress}>

@@ -1,8 +1,10 @@
 """Plugin discovery and lifecycle management."""
-import importlib, sys, os
+import importlib, sys, os, logging
 from pathlib import Path
 from .base import WalkaboutPlugin
 from ..config import PLUGINS_DIR, ensure_dirs
+
+_log = logging.getLogger(__name__)
 
 class PluginManager:
     def __init__(self):
@@ -31,7 +33,7 @@ class PluginManager:
             try:
                 p.on_startup(app)
             except Exception:
-                pass
+                _log.warning("Plugin %s on_startup failed", p.name, exc_info=True)
 
     def on_pre_execute(self, module_name: str, code: str) -> str:
         for p in self.plugins:
@@ -40,7 +42,7 @@ class PluginManager:
                 if result is not None:
                     code = result
             except Exception:
-                pass
+                _log.warning("Plugin %s on_pre_execute failed", p.name, exc_info=True)
         return code
 
     def on_post_execute(self, module_name: str, trace: dict) -> dict:
@@ -50,5 +52,5 @@ class PluginManager:
                 if result is not None:
                     trace = result
             except Exception:
-                pass
+                _log.warning("Plugin %s on_post_execute failed", p.name, exc_info=True)
         return trace

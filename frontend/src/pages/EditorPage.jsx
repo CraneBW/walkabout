@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FileBrowser from '../components/FileBrowser';
 import Editor from '../components/Editor';
@@ -38,9 +38,11 @@ export default function EditorPage() {
   // Toast notifications
   const [toast, setToast] = useState(null);
 
+  const toastTimer = useRef(null);
   const showToast = (msg) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+    toastTimer.current = setTimeout(() => setToast(null), 3000);
   };
 
   // Initialize theme from settings

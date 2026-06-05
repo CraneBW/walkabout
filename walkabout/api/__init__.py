@@ -44,6 +44,7 @@ def _run_trace_subprocess(module_name: str, trace_path: Path, cwd: Path, timeout
         text=True,
         cwd=str(cwd),
         env=env,
+        **(dict(creationflags=subprocess.CREATE_NO_WINDOW) if sys.platform == "win32" else {}),
     )
 
     try:
