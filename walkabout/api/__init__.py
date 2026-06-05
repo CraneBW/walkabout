@@ -94,6 +94,16 @@ def _run_trace_inprocess(module_name: str, trace_path: Path, cwd: Path) -> None:
             if meipass not in sys.path:
                 sys.path.insert(0, meipass)
 
+        # Register bare-import aliases so user walkthrough code like
+        # ``from execute_util import text`` resolves to the SAME module
+        # object as ``from walkabout.core.execute_util import pop_renderings``.
+        # Without this, _current_renderings is a different list and
+        # renderings are never captured (views show raw code, not output).
+        import walkabout.core.execute_util as _ceu
+        import walkabout.core.file_util as _cfu
+        sys.modules['execute_util'] = _ceu
+        sys.modules['file_util'] = _cfu
+
         # Pre-import the note module via file path to bypass PyInstaller's
         # FrozenImporter, which may intercept stdlib module names (e.g.,
         # Python's "test" package shadows a user note named test.py).
