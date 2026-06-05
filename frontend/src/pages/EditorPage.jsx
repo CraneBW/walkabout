@@ -87,6 +87,10 @@ export default function EditorPage() {
   const handleToggleTheme = () => {
     const next = toggleTheme();
     setCurrentTheme(next);
+    // Persist to API so the setting survives page navigation.
+    // Without this, EditorPage re-mount (e.g. after visiting Settings)
+    // would fetch the stale API value and overwrite the toggle.
+    axios.post('/api/config/set', { key: 'appearance.theme', value: next }).catch(() => {});
   };
 
   useEffect(() => {

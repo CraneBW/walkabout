@@ -149,4 +149,98 @@ describe('toggleTheme', () => {
     });
     expect(toggleTheme()).toBe('dark');
   });
+
+  it('persists toggled theme in localStorage', () => {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    toggleTheme(); // dark → light
+    expect(localStorage.getItem('walkabout_theme')).toBe('light');
+  });
+});
+
+// ── Bug regression: toolbar toggle vs API config override ──────────
+
+describe('theme persistence across page navigation (B7 regression)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    document.documentElement.removeAttribute('data-theme');
+    vi.restoreAllMocks();
+  });
+
+  it('toolbar toggle survives initTheme() with same value', () => {
+    // User starts with dark theme
+    applyTheme('dark');
+    // User toggles to light via toolbar button
+    toggleTheme(); // dark → light
+    // User returns from Settings — EditorPage re-mounts,
+    // API returns the correct theme (light, because it was saved)
+    initTheme('light');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    expect(localStorage.getItem('walkabout_theme')).toBe('light');
+  });
+
+  it('toolbar toggle persists correctly when API has up-to-date value (post-fix)', () => {
+    // After the fix: handleToggleTheme() now saves to API via
+    // axios.post('/api/config/set', { key: 'appearance.theme', value }).
+    // So on EditorPage re-mount, the API returns the correct value.
+
+    // User starts with dark theme (synced with API)
+    applyTheme('dark');
+    localStorage.setItem('walkabout_theme', 'dark');
+    expect(getCurrentTheme()).toBe('dark');
+
+    // User clicks toolbar toggle → light (now also saves to API)
+    const toggled = toggleTheme();
+    expect(toggled).toBe('light');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    expect(localStorage.getItem('walkabout_theme')).toBe('light');
+
+    // Now user navigates to Settings and back
+    // EditorPage re-mounts → useEffect fetches API config
+    // API now has 'light' because handleToggleTheme saved it
+    const freshApiTheme = 'light';
+
+    // initTheme with the API value — now correct
+    initTheme(freshApiTheme);
+
+    // Theme stays light — user's toggle preference is preserved
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    expect(getCurrentTheme()).toBe('light');
+  });
+
+  it('verify: getCurrentTheme reflects localStorage before initTheme', () => {
+    // After toggle, localStorage is correct
+    document.documentElement.setAttribute('data-theme', 'dark');
+    toggleTheme(); // → light
+    expect(getCurrentTheme()).toBe('light');
+    expect(localStorage.getItem('walkabout_theme')).toBe('light');
+  });
+
+  it('initTheme with null falls back to localStorage (correct behavior)', () => {
+    // If API has no theme, initTheme should fall back to localStorage
+    localStorage.setItem('walkabout_theme', 'light');
+    initTheme(null);
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+  });
+
+  it('initTheme with undefined falls back to dark default', () => {
+    initTheme(undefined);
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+  });
+
+  it('theme chain: toggle → get → init with fresh API value', () => {
+    // Full correct flow (after fix): toolbar toggle saves to API
+    applyTheme('dark');
+
+    // Toolbar toggle (now saves to API)
+    toggleTheme(); // → light
+    // Simulate API now returning light
+    const freshApiTheme = 'light';
+
+    // EditorPage re-mounts
+    initTheme(freshApiTheme);
+
+    // Theme should stay light
+    expect(getCurrentTheme()).toBe('light');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+  });
 });
