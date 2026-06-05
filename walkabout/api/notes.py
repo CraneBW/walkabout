@@ -34,11 +34,13 @@ def _ensure_package_init(path: Path) -> None:
     Only directories strictly below NOTES_DIR get __init__.py to avoid
     touching filesystem roots (e.g. /__init__.py).
     """
-    notes_root = str(NOTES_DIR.resolve()) + os.sep
+    notes_root = (NOTES_DIR.resolve())
     for parent in reversed(path.parents):
         if parent == path or parent == path.anchor:
             continue
-        if not (str(parent) + os.sep).startswith(notes_root):
+        try:
+            parent.relative_to(notes_root)
+        except ValueError:
             continue
         init = parent / "__init__.py"
         if not init.exists():
@@ -46,9 +48,13 @@ def _ensure_package_init(path: Path) -> None:
 
 
 def _resolve(relpath: str) -> Path:
-    """Resolve a relative path to an absolute path under NOTES_DIR."""
+    """Resolve a relative path to an absolute path under NOTES_DIR.
+
+    Uses Path.relative_to() which is case-insensitive on Windows."""
     p = (NOTES_DIR / relpath).resolve()
-    if not str(p).startswith(str(NOTES_DIR.resolve())):
+    try:
+        p.relative_to(NOTES_DIR.resolve())
+    except ValueError:
         raise HTTPException(400, "Path traversal not allowed")
     return p
 

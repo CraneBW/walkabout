@@ -9,9 +9,14 @@ from . import _run_trace_subprocess
 
 
 def _resolve(relpath: str):
-    """Resolve *relpath* against NOTES_DIR, rejecting path traversal."""
+    """Resolve *relpath* against NOTES_DIR, rejecting path traversal.
+
+    Uses Path.relative_to() which is case-insensitive on Windows and
+    properly handles path boundaries (no string-startswith tricks)."""
     p = (NOTES_DIR / relpath).resolve()
-    if not str(p).startswith(str(NOTES_DIR.resolve())):
+    try:
+        p.relative_to(NOTES_DIR.resolve())
+    except ValueError:
         raise HTTPException(403, "Invalid path")
     return p
 
