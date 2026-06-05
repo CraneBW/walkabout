@@ -1,6 +1,6 @@
 # Walkabout 基线任务文档
 
-> 版本: 0.2.0 | 更新: 2026-06-04
+> 版本: 0.2.0 | 更新: 2026-06-05
 
 ## 已完成 (Completed)
 
@@ -17,7 +17,12 @@
 - [x] **MathJax 数学公式** — `MutationObserver` + 轮询兜底，TraceViewer 动态渲染公式
 - [x] **架构债务化解** — 修复 T1/B1/B2/B4/B5，提取共享子进程 runner，清理死代码
 - [x] **双主题设计系统** — CSS 变量驱动的暗色/暖白双主题，工具栏一键切换，设置页即时生效
-- [x] **前端 UI 美化** — 全新设计系统：自定义属性、Inter 字体、柔和色调、过渡动效、圆角阴影
+- [x] **"Cosmic Glass" UI** — 玻璃拟态面板、渐变色彩、极光动画欢迎页、卡片化设置
+- [x] **跨平台全面适配** — Windows/macOS/Linux：路径分隔符、venv 路径、编码、import、子进程、GUI 检测
+- [x] **安全加固** — 路径穿越防护、XSS 防御（DOMPurify + `</script>` 转义）、插件异常日志
+- [x] **Python 包导入规范** — core/ 模块裸导入 → `walkabout.core.xxx` 标准包导入
+- [x] **GitHub Release 自动打包** — PyInstaller + GitHub Actions，tag push 自动构建 Linux/Windows 单文件包
+- [x] **in-process 执行** — PyInstaller 打包后在进程内直接执行 trace，无需子进程
 
 ---
 
@@ -144,9 +149,10 @@
 - E2E: Playwright (编辑→执行→回放完整链路)
 - 预计: 2 周。
 
-### F12. CI/CD
-- GitHub Actions: lint (ruff + eslint) → test (pytest + vitest) → build → publish PyPI
-- 预计: 3 天。
+### F12. CI/CD（部分完成）
+- ✅ GitHub Actions Release 工作流: tag push → PyInstaller build → 上传 Linux/Windows 包
+- 待补: lint (ruff + eslint) → test (pytest + vitest) → publish PyPI
+- 预计: 2 天。
 
 ### F13. CLI 模式
 - `walkabout run my_script.py` — 命令行直接执行 walkthrough 并输出 trace JSON（无需 GUI）。

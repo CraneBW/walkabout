@@ -4,6 +4,36 @@
 
 ### Added
 
+- **"Cosmic Glass" UI 设计系统**
+  - 玻璃拟态面板（backdrop-blur）、Indigo→Cyan 渐变色彩、极光动画欢迎页。
+  - 卡片化设置页（hover 高亮、focus 发光环、修改指示点呼吸动画）。
+  - 浮动图标 + 键盘快捷键提示欢迎页。
+  - 影响文件: `frontend/src/index.css`, `frontend/src/pages/EditorPage.jsx`
+
+- **跨平台全面适配 (Linux/Windows/macOS)**
+  - 路径分隔符 `os.sep` 替代硬编码 `/`；venv `Scripts/python.exe` vs `bin/python3`。
+  - 所有 `open()` 加 `encoding="utf-8"`；`sys.platform` 检测 GUI。
+  - `subprocess` 加 `CREATE_NO_WINDOW`、超时、`os.pathsep`。
+  - `os.makedirs(exist_ok=True)` 替代 `os.mkdir`。
+  - 影响文件: 10+ 个 Python 文件
+
+- **安全加固**
+  - `api/execute.py`, `api/export.py` 添加路径穿越防护（`_resolve()`）。
+  - TraceViewer 中 `marked()` 输出通过 `DOMPurify.sanitize()`（XSS）。
+  - `export.py` 中 trace JSON 转义 `</`（XSS）。
+  - 未知 settings key 返回 400 而非静默接受；损坏的 `settings.json` 回退默认值。
+  - 影响文件: 8 个文件
+
+- **Python 包导入规范化**
+  - `core/execute.py`、`execute_util.py`、`arxiv_util.py` 裸导入 → `walkabout.core.xxx`。
+  - PyInstaller 导入兼容性修复。
+  - 影响文件: `walkabout/core/`, `walkabout/runner.py`
+
+- **GitHub Release 自动打包**
+  - `.github/workflows/release.yml`: tag push 触发 PyInstaller 构建。
+  - Linux 和 Windows 单文件可执行包自动上传到 Release。
+  - in-process trace 执行（PyInstaller 打包后无需子进程）。
+
 - **双主题设计系统 — CSS 变量驱动的暗色/暖白双主题**
   - 完整的 CSS 自定义属性体系（颜色、阴影、间距、圆角、过渡）。
   - 暗色主题（深黑 `#191b1e`）和暖白亮色主题（米白 `#f3f2ee`）。
@@ -74,6 +104,15 @@
   - 影响文件: `walkabout/examples/demo_walkthrough.py`
 
 ### Fixed
+
+- **全面代码审查修复（两轮，40+ 个问题）**
+  - 安全: XSS x2（DOMPurify + `</script>` 转义）、路径穿越 x2。
+  - 崩溃: 缺 `import sys`、`settings.json` 损坏防护、单步 trace 除零。
+  - 跨平台: `os.sep`、`os.makedirs`、`CREATE_NO_WINDOW`、`is_gui_available()` macOS/Wayland。
+  - 代码质量: `link()` style 死代码、重复 import、插件异常日志、Toast 定时器清理、文件描述符关闭。
+  - 配置: 未知 key 校验、`python`/`python3` fallback、arXiv HTTPS。
+  - CI: 提交 `package-lock.json`（`npm ci` 需要）。
+  - 影响文件: 24 个文件
 
 - **pywebview GUI 黑屏 — localStorage 异常导致 React 渲染崩溃**
   - `theme.js` 中 `getCurrentTheme()` 在 pywebview 的 WebKitGTK/JavaScriptCore 引擎中抛出未捕获异常，传播到 React 渲染周期导致整个应用崩溃（仅显示 CSS 背景色）。
