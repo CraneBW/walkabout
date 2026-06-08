@@ -350,10 +350,17 @@ def serve_command(no_gui: bool = False) -> None:
 # ── Entry point ──────────────────────────────────────────────────────────
 
 
-def main() -> None:
-    """Main entry point — parse CLI args and dispatch to the right handler."""
+def main(argv: list[str] | None = None) -> None:
+    """Main entry point — parse CLI args and dispatch to the right handler.
+
+    Parameters
+    ----------
+    argv
+        Argument list (defaults to ``sys.argv[1:]`` when *None*).
+        Passing an explicit list makes the function testable.
+    """
     parser = create_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.subcommand == "run":
         run_command(args.script, args.output, args.inspect_all)
