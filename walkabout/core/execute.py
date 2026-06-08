@@ -203,8 +203,22 @@ def execute(module_name: str, inspect_all_variables: bool) -> Trace:
             steps.append(open_step)
         open_step_index = len(steps) - 1
 
+        # Track which step indices have already received their first
+        # local_trace_func call.  The first call fires before the corresponding
+        # line has executed, so we suppress "not found" warnings then.  This
+        # also handles inlined comprehensions (PEP 709, Python 3.12+), where
+        # local_trace_func fires many times for a single source line.
+        _seen_steps: set[int] = set()
+
         def local_trace_func(frame, event, arg):
             """This is called *after* a line of code has been executed."""
+            # Skip comprehension/generator frames (<listcomp>, <genexpr>, etc.)
+            # They run in an implicit function scope where @inspect variables
+            # are not yet assigned.
+            co_name = frame.f_code.co_name
+            if co_name.startswith('<') and co_name.endswith('>'):
+                return trace_func(frame, event, arg)
+
             # If the last step was the same line, then just use the same one
             # Otherwise, create a new step (e.g., returning from a function)
             if open_step_index == len(steps) - 1:
@@ -220,14 +234,20 @@ def execute(module_name: str, inspect_all_variables: bool) -> Trace:
                 )
                 steps.append(close_step)
 
+            is_first_call = open_step_index not in _seen_steps
+            _seen_steps.add(open_step_index)
+
             # Update the environment with the actual values
-            locals = frame.f_locals
-            vars = locals.keys() if inspect_all_variables else get_inspect_variables(item.code)
+            frame_locals = frame.f_locals
+            vars = frame_locals.keys() if inspect_all_variables else get_inspect_variables(item.code)
             for var in vars:
-                if var in locals:
-                    close_step.env[var] = to_serializable_value(locals[var])
-                else:
-                    print(f"WARNING: variable {var} not found in locals")
+                if var in frame_locals:
+                    close_step.env[var] = to_serializable_value(frame_locals[var])
+                elif var not in close_step.env:
+                    if not is_first_call:
+                        print(f"WARNING: variable {var} not found in locals")
+                    # Place None so subsequent iterations skip re-warning
+                    close_step.env[var] = None
                 print(f"    env: {var} = {close_step.env.get(var)}", file=real_stdout)
 
             # Capture the renderings of the last line

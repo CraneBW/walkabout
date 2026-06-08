@@ -209,6 +209,171 @@ def main():
             os.chdir(old_cwd)
             sys.path[:] = old_path
 
+    def test_list_comprehension_inspect(self, temp_home, capsys):
+        """List comprehension @inspect captures the variable without WARNING spam."""
+        note = temp_home / "notes" / "listcomp_test.py"
+        note.write_text('''"""Test."""
+def main():
+    squares = [x * x for x in range(5)]  # @inspect squares
+    _ = squares
+''', encoding="utf-8")
+
+        core_dir = str(Path(__file__).parent.parent / "walkabout" / "core")
+        old_cwd = os.getcwd()
+        old_path = sys.path.copy()
+        try:
+            os.chdir(str(temp_home / "notes"))
+            if str(temp_home / "notes") not in sys.path:
+                sys.path.insert(0, str(temp_home / "notes"))
+            if core_dir not in sys.path:
+                sys.path.insert(0, core_dir)
+
+            trace = execute(module_name="listcomp_test", inspect_all_variables=False)
+
+            # Check that squares was captured correctly
+            env_values = {}
+            for step in trace.steps:
+                env_values.update(step.env)
+            assert env_values.get("squares") == [0, 1, 4, 9, 16]
+
+            # Check no WARNING was printed about squares not found
+            captured = capsys.readouterr()
+            assert "WARNING: variable squares not found" not in captured.out
+        finally:
+            os.chdir(old_cwd)
+            sys.path[:] = old_path
+
+    def test_set_comprehension_inspect(self, temp_home, capsys):
+        """Set comprehension @inspect captures without WARNING spam."""
+        note = temp_home / "notes" / "setcomp_test.py"
+        note.write_text('''"""Test."""
+def main():
+    myset = {x for x in range(3)}  # @inspect myset
+    _ = myset
+''', encoding="utf-8")
+
+        core_dir = str(Path(__file__).parent.parent / "walkabout" / "core")
+        old_cwd = os.getcwd()
+        old_path = sys.path.copy()
+        try:
+            os.chdir(str(temp_home / "notes"))
+            if str(temp_home / "notes") not in sys.path:
+                sys.path.insert(0, str(temp_home / "notes"))
+            if core_dir not in sys.path:
+                sys.path.insert(0, core_dir)
+
+            trace = execute(module_name="setcomp_test", inspect_all_variables=False)
+
+            env_values = {}
+            for step in trace.steps:
+                env_values.update(step.env)
+            # Sets are serialised as strings (not JSON-native)
+            assert env_values.get("myset") == '{0, 1, 2}'
+
+            captured = capsys.readouterr()
+            assert "WARNING: variable myset not found" not in captured.out
+        finally:
+            os.chdir(old_cwd)
+            sys.path[:] = old_path
+
+    def test_dict_comprehension_inspect(self, temp_home, capsys):
+        """Dict comprehension @inspect captures without WARNING spam."""
+        note = temp_home / "notes" / "dictcomp_test.py"
+        note.write_text('''"""Test."""
+def main():
+    mydict = {k: v for k, v in [("a", 1)]}  # @inspect mydict
+    _ = mydict
+''', encoding="utf-8")
+
+        core_dir = str(Path(__file__).parent.parent / "walkabout" / "core")
+        old_cwd = os.getcwd()
+        old_path = sys.path.copy()
+        try:
+            os.chdir(str(temp_home / "notes"))
+            if str(temp_home / "notes") not in sys.path:
+                sys.path.insert(0, str(temp_home / "notes"))
+            if core_dir not in sys.path:
+                sys.path.insert(0, core_dir)
+
+            trace = execute(module_name="dictcomp_test", inspect_all_variables=False)
+
+            env_values = {}
+            for step in trace.steps:
+                env_values.update(step.env)
+            assert env_values.get("mydict") == {"a": 1}
+
+            captured = capsys.readouterr()
+            assert "WARNING: variable mydict not found" not in captured.out
+        finally:
+            os.chdir(old_cwd)
+            sys.path[:] = old_path
+
+    def test_generator_expression_inspect(self, temp_home, capsys):
+        """Generator expression @inspect captures without WARNING spam."""
+        note = temp_home / "notes" / "genexpr_test.py"
+        note.write_text('''"""Test."""
+def main():
+    total = sum(x for x in range(3))  # @inspect total
+    _ = total
+''', encoding="utf-8")
+
+        core_dir = str(Path(__file__).parent.parent / "walkabout" / "core")
+        old_cwd = os.getcwd()
+        old_path = sys.path.copy()
+        try:
+            os.chdir(str(temp_home / "notes"))
+            if str(temp_home / "notes") not in sys.path:
+                sys.path.insert(0, str(temp_home / "notes"))
+            if core_dir not in sys.path:
+                sys.path.insert(0, core_dir)
+
+            trace = execute(module_name="genexpr_test", inspect_all_variables=False)
+
+            env_values = {}
+            for step in trace.steps:
+                env_values.update(step.env)
+            assert env_values.get("total") == 3
+
+            captured = capsys.readouterr()
+            assert "WARNING: variable total not found" not in captured.out
+        finally:
+            os.chdir(old_cwd)
+            sys.path[:] = old_path
+
+    def test_regular_inspect_still_works(self, temp_home, capsys):
+        """Regular (non-comprehension) @inspect still works after comprehension fix."""
+        note = temp_home / "notes" / "regular_inspect.py"
+        note.write_text('''"""Test."""
+def main():
+    a = 10  # @inspect a
+    b = 20  # @inspect b
+    _ = a + b
+''', encoding="utf-8")
+
+        core_dir = str(Path(__file__).parent.parent / "walkabout" / "core")
+        old_cwd = os.getcwd()
+        old_path = sys.path.copy()
+        try:
+            os.chdir(str(temp_home / "notes"))
+            if str(temp_home / "notes") not in sys.path:
+                sys.path.insert(0, str(temp_home / "notes"))
+            if core_dir not in sys.path:
+                sys.path.insert(0, core_dir)
+
+            trace = execute(module_name="regular_inspect", inspect_all_variables=False)
+
+            env_values = {}
+            for step in trace.steps:
+                env_values.update(step.env)
+            assert env_values.get("a") == 10
+            assert env_values.get("b") == 20
+
+            captured = capsys.readouterr()
+            assert "WARNING" not in captured.out
+        finally:
+            os.chdir(old_cwd)
+            sys.path[:] = old_path
+
     def test_execute_produces_file_dict(self, temp_home):
         """Trace should include the executed file in files dict."""
         note = temp_home / "notes" / "file_test.py"
