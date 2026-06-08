@@ -3,6 +3,7 @@
 Launches as a standalone desktop app with embedded webview.
 No external browser required.
 """
+import argparse
 import contextlib
 import os
 import platform
@@ -57,7 +58,57 @@ def _wait_for_server(port: int, timeout: float = 5.0) -> bool:
     return False
 
 
-def main():
+def _has_display() -> bool:
+    """Return True when a GUI display is available.
+
+    Windows and macOS always have a display.  On Linux we check
+    ``$DISPLAY`` or ``$WAYLAND_DISPLAY``.
+    """
+    if sys.platform in ("win32", "darwin"):
+        return True
+    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+
+
+def _is_wsl() -> bool:
+    """Return True when running inside WSL (Windows Subsystem for Linux).
+
+    Detection uses the ``WSL_DISTRO_NAME`` environment variable first,
+    then falls back to checking ``platform.uname().release`` for
+    ``"microsoft"`` (kernel string).
+    """
+    is_wsl = bool(os.environ.get("WSL_DISTRO_NAME", ""))
+    if not is_wsl:
+        with contextlib.suppress(Exception):
+            is_wsl = "microsoft" in platform.uname().release.lower()
+    return is_wsl
+
+
+def create_parser() -> argparse.ArgumentParser:
+    """Build the command-line argument parser."""
+    parser = argparse.ArgumentParser(
+        prog="walkabout",
+        description="Interactive code walkthrough editor",
+    )
+    parser.add_argument(
+        "--no-gui",
+        action="store_true",
+        help="Force server-only mode; do not attempt to open a GUI window",
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None):
+    """Walkabout entry point.
+
+    Parameters
+    ----------
+    argv
+        Argument list (defaults to ``sys.argv[1:]`` when *None*).
+        Passing an explicit list makes the function testable.
+    """
+    parser = create_parser()
+    args = parser.parse_args(argv)
+
     from walkabout.config import NOTES_DIR, load_settings
     from walkabout.plugins.manager import PluginManager
 
@@ -89,31 +140,36 @@ def main():
     app = create_app()
     url = f"http://localhost:{port}"
 
-    # Detect headless / WSL --skip GUI, use server-only mode
-    # Windows and macOS always have a display. Linux checks $DISPLAY / $WAYLAND_DISPLAY.
-    if sys.platform in ("win32", "darwin"):
-        has_display = True
-    else:
-        has_display = bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+    # Resolve launch mode ------------------------------------------------
+    has_display = _has_display()
+    is_wsl = _is_wsl()
 
-    is_wsl = bool(os.environ.get("WSL_DISTRO_NAME", ""))
-    if not is_wsl:
-        with contextlib.suppress(Exception):
-            is_wsl = "microsoft" in platform.uname().release.lower()
-
-    if is_wsl:
-        print("   WSL2 detected --server starting at:")
-        print(f"   ->  {url}")
-        print("   Open this URL in your Windows browser. (WSL2 auto-forwards localhost)\n")
+    # --no-gui always overrides: force server-only mode
+    if args.no_gui:
+        print(f"   Server mode (--no-gui) --server starting at {url}\n")
         _run_server(app, host, port, log_level="info")
         return
+
+    # WSL detection: check display availability first
+    if is_wsl:
+        if has_display:
+            # WSL with X Server / WSLg -- fall through to GUI code below
+            pass
+        else:
+            # WSL without display -- server mode with WSL forwarding message
+            print("   WSL2 detected --server starting at:")
+            print(f"   ->  {url}")
+            print("   Open this URL in your Windows browser."
+                  " (WSL2 auto-forwards localhost)\n")
+            _run_server(app, host, port, log_level="info")
+            return
 
     if not has_display:
         print(f"   Headless mode --server starting at {url}\n")
         _run_server(app, host, port, log_level="info")
         return
 
-    # Has display --try native window
+    # Has display -- try native window
     try:
         from walkabout.webview import open_window
     except ImportError:
@@ -132,7 +188,8 @@ def main():
         server_thread.start()
 
         if not _wait_for_server(port, timeout=5.0):
-            print("   Error: Server did not start in time. Check the output above.")
+            print("   Error: Server did not start in time."
+                  " Check the output above.")
             return
 
         print("   Launching native window...")
