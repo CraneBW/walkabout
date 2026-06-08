@@ -11,6 +11,8 @@ import socket
 import sys
 import threading
 import time
+from pathlib import Path
+from typing import Any
 
 
 def _create_bind_socket(host: str, port: int) -> socket.socket:
@@ -58,6 +60,9 @@ def _wait_for_server(port: int, timeout: float = 5.0) -> bool:
     return False
 
 
+# ── Display and WSL detection utilities ──────────────────────────────────
+
+
 def _has_display() -> bool:
     """Return True when a GUI display is available.
 
@@ -83,32 +88,163 @@ def _is_wsl() -> bool:
     return is_wsl
 
 
+# ── CLI argument parser ─────────────────────────────────────────────────
+
+
 def create_parser() -> argparse.ArgumentParser:
-    """Build the command-line argument parser."""
+    """Create the CLI argument parser with all subcommands."""
     parser = argparse.ArgumentParser(
         prog="walkabout",
-        description="Interactive code walkthrough editor",
+        description="Walkabout — Interactive Code Walkthrough Editor",
     )
     parser.add_argument(
         "--no-gui",
         action="store_true",
         help="Force server-only mode; do not attempt to open a GUI window",
     )
+    subparsers = parser.add_subparsers(dest="subcommand")
+    # No subcommand → defaults to serve (handled in main())
+    subparsers.required = False
+
+    # serve
+    _ = subparsers.add_parser(
+        "serve", help="Start the server and GUI (default behaviour)",
+    )
+
+    # run
+    run_p = subparsers.add_parser(
+        "run",
+        help="Execute a walkthrough script headlessly and save trace JSON",
+    )
+    run_p.add_argument("script", help="Path to the walkthrough .py script")
+    run_p.add_argument(
+        "-o", "--output", default=None,
+        help="Output trace JSON path (default: SCRIPT.json)",
+    )
+    run_p.add_argument(
+        "--inspect-all", action="store_true",
+        help="Capture all local variables (not just @inspect)",
+    )
+
+    # export
+    export_p = subparsers.add_parser(
+        "export",
+        help="Export a walkthrough to standalone HTML",
+    )
+    export_p.add_argument(
+        "script", nargs="?", default=None,
+        help="Path to the walkthrough .py script",
+    )
+    export_p.add_argument(
+        "--from-trace", default=None,
+        help="Path to existing trace JSON (export without re-executing)",
+    )
+    export_p.add_argument(
+        "-o", "--output", default=None,
+        help="Output HTML path (default: SCRIPT.html or TRACE.html)",
+    )
+    export_p.add_argument(
+        "--strip-source", action="store_true",
+        help="Strip unreferenced source lines from trace",
+    )
+    export_p.add_argument(
+        "--content-only", action="store_true",
+        help="Export rendered content only, no source code",
+    )
+
     return parser
 
 
-def main(argv: list[str] | None = None):
-    """Walkabout entry point.
+# ── Subcommand handlers ──────────────────────────────────────────────────
 
-    Parameters
-    ----------
-    argv
-        Argument list (defaults to ``sys.argv[1:]`` when *None*).
-        Passing an explicit list makes the function testable.
+
+def run_command(script: str, output: str | None,
+                inspect_all: bool) -> dict[str, Any]:
+    """Execute a walkthrough script and save trace JSON.
+
+    Returns the trace dict.
     """
-    parser = create_parser()
-    args = parser.parse_args(argv)
+    from walkabout.runner import execute_note
 
+    script = os.path.abspath(script)
+    if not output:
+        output = os.path.splitext(os.path.basename(script))[0] + ".json"
+    else:
+        output = os.path.abspath(output)
+
+    trace_dict = execute_note(script, output, inspect_all)
+    steps = len(trace_dict.get("steps", []))
+    print(f"Trace saved: {output} ({steps} steps)", file=sys.stderr)
+    return trace_dict
+
+
+def export_command(
+    script: str | None,
+    from_trace: str | None,
+    output: str | None,
+    strip_source: bool,
+    content_only: bool,
+) -> Path | None:
+    """Export a walkthrough to standalone HTML.
+
+    Either *script* (execute first) or *from_trace* (use existing trace
+    JSON) must be provided.  *output* defaults to the script/trace stem
+    with an ``.html`` extension.
+
+    Returns the path to the generated HTML file, or ``None`` on error.
+    """
+    from walkabout.export import export_note
+
+    if from_trace:
+        trace_path = os.path.abspath(from_trace)
+        if not os.path.exists(trace_path):
+            print(f"Error: Trace file not found: {from_trace}", file=sys.stderr)
+            sys.exit(1)
+        out = output if output else os.path.splitext(from_trace)[0] + ".html"
+        return export_note(Path(trace_path), Path(out),
+                          title=None,
+                          strip_source=strip_source,
+                          content_only=content_only)
+
+    if script:
+        script_path = os.path.abspath(script)
+        if not os.path.exists(script_path):
+            print(f"Error: Script not found: {script}", file=sys.stderr)
+            sys.exit(1)
+        if not output:
+            out = os.path.splitext(os.path.basename(script))[0] + ".html"
+        else:
+            out = os.path.abspath(output)
+
+        import tempfile
+
+        from walkabout.runner import execute_note
+
+        # Execute first, then export via a temporary trace file.
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tf:
+            temp_trace = tf.name
+        try:
+            execute_note(script_path, temp_trace, inspect_all=False)
+            result = export_note(Path(temp_trace), Path(out),
+                                 title=None,
+                                 strip_source=strip_source,
+                                 content_only=content_only)
+        finally:
+            if os.path.exists(temp_trace):
+                os.unlink(temp_trace)
+        return result
+
+    print("Error: Either a script path or --from-trace is required for export.",
+          file=sys.stderr)
+    print("Usage: walkabout export SCRIPT.py [-o OUTPUT.html] [--strip-source] [--content-only]",
+          file=sys.stderr)
+    print("   or: walkabout export --from-trace TRACE.json -o OUTPUT.html",
+          file=sys.stderr)
+    sys.exit(1)
+
+
+def serve_command(no_gui: bool = False) -> None:
+    """Start the server and optionally open a GUI window (original behaviour)."""
     from walkabout.config import NOTES_DIR, load_settings
     from walkabout.plugins.manager import PluginManager
 
@@ -129,7 +265,6 @@ def main(argv: list[str] | None = None):
     print()
 
     # Check frontend
-    from pathlib import Path
     dist = Path(__file__).parent.parent / "frontend" / "dist" / "index.html"
     if not dist.exists():
         print("   [WARN] Frontend not built. First-time setup:")
@@ -145,7 +280,7 @@ def main(argv: list[str] | None = None):
     is_wsl = _is_wsl()
 
     # --no-gui always overrides: force server-only mode
-    if args.no_gui:
+    if no_gui:
         print(f"   Server mode (--no-gui) --server starting at {url}\n")
         _run_server(app, host, port, log_level="info")
         return
@@ -210,6 +345,24 @@ def main(argv: list[str] | None = None):
     import webbrowser
     webbrowser.open(url)
     _run_server(app, host, port, log_level="info")
+
+
+# ── Entry point ──────────────────────────────────────────────────────────
+
+
+def main() -> None:
+    """Main entry point — parse CLI args and dispatch to the right handler."""
+    parser = create_parser()
+    args = parser.parse_args()
+
+    if args.subcommand == "run":
+        run_command(args.script, args.output, args.inspect_all)
+    elif args.subcommand == "export":
+        export_command(args.script, args.from_trace, args.output,
+                       args.strip_source, args.content_only)
+    else:
+        # No subcommand, or "serve" explicitly — original GUI behaviour
+        serve_command(no_gui=args.no_gui)
 
 
 if __name__ == "__main__":
