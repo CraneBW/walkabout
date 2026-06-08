@@ -208,15 +208,22 @@ def execute(module_name: str, inspect_all_variables: bool) -> Trace:
         # line has executed, so we suppress "not found" warnings then.  This
         # also handles inlined comprehensions (PEP 709, Python 3.12+), where
         # local_trace_func fires many times for a single source line.
+        # CPython comprehension frame names where @inspect variables
+        # are not yet assigned.
+        _COMPREHENSION_FRAMES = frozenset({
+            '<listcomp>', '<setcomp>', '<dictcomp>', '<genexpr>',
+        })
+
         _seen_steps: set[int] = set()
 
         def local_trace_func(frame, event, arg):
             """This is called *after* a line of code has been executed."""
             # Skip comprehension/generator frames (<listcomp>, <genexpr>, etc.)
             # They run in an implicit function scope where @inspect variables
-            # are not yet assigned.
-            co_name = frame.f_code.co_name
-            if co_name.startswith('<') and co_name.endswith('>'):
+            # are not yet assigned.  We explicitly check for CPython's
+            # comprehension frame markers rather than a blanket '<' / '>'
+            # check so that '<module>' (module-level code) is NOT suppressed.
+            if frame.f_code.co_name in _COMPREHENSION_FRAMES:
                 return trace_func(frame, event, arg)
 
             # If the last step was the same line, then just use the same one

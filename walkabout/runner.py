@@ -90,7 +90,7 @@ def execute_note(script_path: str, output_path: str,
     # Paths for bare imports (mirrors the logic in main(), above)
     runner_dir = os.path.dirname(os.path.abspath(__file__))
     core_dir = os.path.join(runner_dir, 'core')
-    walkabout_root = os.path.join(runner_dir, '..')
+    walkabout_root = os.path.dirname(runner_dir)  # parent of walkabout/
 
     old_cwd = os.getcwd()
     old_path = sys.path.copy()
