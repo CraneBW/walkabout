@@ -1,0 +1,10 @@
+# Walkabout sdist inclusion rules
+
+# Include frontend build output (needed at runtime)
+recursive-include frontend/dist *
+
+# Exclude development and CI files
+prune tests
+prune .claude
+exclude .gitignore
+exclude *.spec

@@ -3,6 +3,8 @@
 Launches as a standalone desktop app with embedded webview.
 No external browser required.
 """
+from __future__ import annotations
+
 import argparse
 import contextlib
 import os

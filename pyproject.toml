@@ -2,12 +2,32 @@
 name = "walkabout"
 version = "0.2.0"
 description = "Interactive code walkthrough editor — write, run, replay"
+readme = "README.md"
 requires-python = ">=3.9"
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Text Editors",
+]
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
     "requests>=2.31.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/0x-hjk/walkabout"
+Repository = "https://github.com/0x-hjk/walkabout"
+Issues = "https://github.com/0x-hjk/walkabout/issues"
 
 [project.optional-dependencies]
 torch = ["torch>=2.0.0"]
@@ -18,8 +38,14 @@ dev = ["walkabout[torch,sympy,gui]"]
 [project.scripts]
 walkabout = "walkabout.__main__:main"
 
+[tool.hatch.build.targets.sdist.force-include]
+"frontend/dist" = "frontend/dist"
+
 [tool.hatch.build.targets.wheel]
 packages = ["walkabout"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"frontend/dist" = "frontend/dist"
 
 [build-system]
 requires = ["hatchling"]
