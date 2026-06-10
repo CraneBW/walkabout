@@ -5,10 +5,15 @@ function getEditorTheme() {
   return theme === 'light' ? 'vs' : 'vs-dark';
 }
 
-export default function Editor({ content, onChange, settings }) {
+export default function Editor({ content, onChange, settings, decorations, onMount }) {
   const [Monaco, setMonaco] = useState(null);
   const [editorTheme, setEditorTheme] = useState(getEditorTheme());
   const fontSize = settings?.fontSize ?? 14;
+
+  // Editor instance refs for inline decorations
+  const editorRef = useRef(null);
+  const monacoRef = useRef(null);
+  const decorationIdsRef = useRef([]);
 
   // Dynamically import monaco-editor to code-split ~5MB from the main chunk,
   // then configure @monaco-editor/react to use the local bundle instead of CDN
@@ -38,6 +43,35 @@ export default function Editor({ content, onChange, settings }) {
     return () => observer.disconnect();
   }, []);
 
+  // Apply / update inline decorations whenever the `decorations` prop changes
+  useEffect(() => {
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+    if (!editor || !monaco) return;
+
+    const newDecorations = (decorations || []).map((d) => ({
+      range: new monaco.Range(d.line, 1, d.line, 1),
+      options: {
+        isWholeLine: true,
+        after: {
+          content: '  ' + d.text,
+          inlineClassName: 'inline-var',
+        },
+      },
+    }));
+
+    decorationIdsRef.current = editor.deltaDecorations(
+      decorationIdsRef.current,
+      newDecorations,
+    );
+  }, [decorations]);
+
+  function handleMount(editor, monaco) {
+    editorRef.current = editor;
+    monacoRef.current = monaco;
+    if (onMount) onMount(editor);
+  }
+
   if (!Monaco) {
     return (
       <div className="editor-container editor-loading">
@@ -54,6 +88,7 @@ export default function Editor({ content, onChange, settings }) {
         theme={editorTheme}
         value={content}
         onChange={(v) => onChange(v || '')}
+        onMount={handleMount}
         options={{
           fontSize,
           lineNumbers: 'on',

@@ -1161,3 +1161,11 @@ img { max-width: 100%; border-radius: var(--radius-sm); }
 .viewer-header a { color: var(--accent); text-decoration: none; font-size: 13px; }
 .viewer-header a:hover { text-decoration: underline; }
 .viewer-embed { flex: 1; overflow-y: auto; }
+
+/* Inline variable decorations in Monaco editor */
+.inline-var {
+  color: var(--text-tertiary);
+  font-style: italic;
+  opacity: 0.85;
+  font-size: 12px;
+}

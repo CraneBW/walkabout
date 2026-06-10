@@ -1,15 +1,17 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import FileBrowser from '../components/FileBrowser';
 import Editor from '../components/Editor';
 import TraceViewer from '../TraceViewer';
 import { listNotes, getNote, saveNote, createNote, deleteNote, executeNote, exportNote, saveExport } from '../api';
 import { getEnvInfo, installPackages } from '../api';
 import { initTheme, toggleTheme, getCurrentTheme } from '../theme';
+import { computeEnv, computeDecorations } from '../utils';
 import axios from 'axios';
 
 export default function EditorPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [files, setFiles] = useState([]);
   const [selectedPath, setSelectedPath] = useState(null);
   const [content, setContent] = useState('');
@@ -24,6 +26,7 @@ export default function EditorPage() {
   // Embedded viewer tab
   const [tab, setTab] = useState('edit'); // 'edit' | 'view'
   const [traceUrl, setTraceUrl] = useState(null);
+  const [traceData, setTraceData] = useState(null);
 
   // Zen mode (fullscreen + hide chrome)
   const [zenMode, setZenMode] = useState(false);
@@ -83,6 +86,40 @@ export default function EditorPage() {
       }
     }).catch(() => { initTheme(); });
   }, []);
+
+  // Fetch trace data when a trace URL is available
+  useEffect(() => {
+    if (!traceUrl) {
+      setTraceData(null);
+      return;
+    }
+    const fetchTrace = async () => {
+      try {
+        const response = await axios.get(traceUrl);
+        setTraceData(response.data);
+      } catch (e) {
+        console.error('Failed to fetch trace:', e);
+      }
+    };
+    fetchTrace();
+  }, [traceUrl]);
+
+  // Compute inline decorations from the current trace step and source file.
+  // Triggers on every URL change (TraceViewer navigates between steps).
+  const decorations = useMemo(() => {
+    if (tab !== 'view' || !traceData) return [];
+
+    const params = new URLSearchParams(location.search);
+    const stepIndex = parseInt(params.get('step'));
+    // Use ?source param if available, otherwise fall back to selectedPath
+    const sourcePath = params.get('source') || selectedPath;
+
+    if (isNaN(stepIndex)) return [];
+    if (!sourcePath || !traceData.files || !traceData.files[sourcePath]) return [];
+
+    const env = computeEnv(traceData, stepIndex);
+    return computeDecorations(env, traceData.files[sourcePath]);
+  }, [tab, traceData, location.search, selectedPath]);
 
   const handleToggleTheme = () => {
     const next = toggleTheme();
@@ -375,8 +412,20 @@ export default function EditorPage() {
           {loading ? (
             <div className="loading">Loading...</div>
           ) : tab === 'view' && traceUrl ? (
-            <div className="viewer-embed">
-              <TraceViewer />
+            <div className="viewer-embed" style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ flex: 1, overflow: 'auto' }}>
+                <TraceViewer />
+              </div>
+              {selectedPath && traceData?.files?.[selectedPath] && (
+                <div style={{ height: '35%', minHeight: 200, borderTop: '1px solid var(--border-glass)' }}>
+                  <Editor
+                    content={traceData.files[selectedPath]}
+                    onChange={() => {}}
+                    settings={editorSettings}
+                    decorations={decorations}
+                  />
+                </div>
+              )}
             </div>
           ) : selectedPath ? (
             <Editor
