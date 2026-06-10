@@ -23,6 +23,11 @@
 - [x] **Python 包导入规范** — core/ 模块裸导入 → `walkabout.core.xxx` 标准包导入
 - [x] **GitHub Release 自动打包** — PyInstaller + GitHub Actions，tag push 自动构建 Linux/Windows 单文件包
 - [x] **in-process 执行** — PyInstaller 打包后在进程内直接执行 trace，无需子进程
+- [x] **CI lint + test 流水线** — push/PR 自动执行 ruff + pytest + eslint + vitest (F12)
+- [x] **全面测试套件** — Python 208 tests + 前端 42 tests = 250+ tests (F11)
+- [x] **CLI 模式** — `walkabout run/export/serve` 子命令，无需 GUI (F13)
+- [x] **列表推导 @inspect 修复** — 推导式帧中不再输出虚假 WARNING (B9)
+- [x] **--no-gui flag + WSL 改进** — WSL + X Server 时允许 GUI (B8)
 
 ---
 
@@ -75,11 +80,10 @@
   - EditorPage 通过 `window.postMessage` 监听 SettingsPage 设置变更。
   - `handleToggleTheme()` 增加 `axios.post('/api/config/set')` 同步保存到 API，防止页面导航后从 API 拉取旧值覆盖。
 
-### B8. pywebview 在 WSL2 中不可用
+### B8. pywebview 在 WSL2 中不可用（已修复）
 - **文件**: `walkabout/webview.py`, `walkabout/__main__.py`
-- **现象**: WSL2 无原生 GUI（无 X Server 时），pywebview 导入成功但 `webview.start()` 崩溃。
-- **当前方案**: try/except 回退到系统浏览器。`open_window()` 不再内嵌 uvicorn 服务，避免与 `__main__.py` 的服务器线程冲突。
-- **修复方向**: 检测 `$DISPLAY` 环境变量，在无 GUI 时打印明确提示并自动降级到浏览器模式，同时提供 `--no-gui` CLI flag。
+- **状态**: 已修复 (#8d816b5)
+- **修复**: 添加 `--no-gui` CLI flag；提取 `_has_display()` / `_is_wsl()` 可测试函数；WSL + X Server/WSLg 时不再强制跳过 GUI，仅在无 display 时自动降级服务器模式。
 
 ### B13. Windows PyInstaller `import test` 失败 — stdlib test 包与用户笔记冲突（已修复）
 - **文件**: `walkabout/api/__init__.py`
@@ -101,10 +105,13 @@
 - **现象**: View 标签页显示原始源代码而非渲染后的 Markdown 输出。
 - **根因**: 用户代码 `from execute_util import text` 和引擎代码 `from walkabout.core.execute_util import pop_renderings` 解析为两个不同 Python 模块对象，`_current_renderings` 列表也不同。
 - **修复**: 注册 `sys.modules['execute_util']` = `sys.modules['walkabout.core.execute_util']`，确保裸导入和包导入共享同一模块对象。
+
+### B9. 列表推导式中 @inspect 变量定位失败（已修复）
 - **文件**: `walkabout/core/execute.py`
-- **现象**: 对列表推导式的结果变量使用 `@inspect`（如 `squares = [x*x for x in range(5)]  # @inspect squares`），local_trace_func 被列表推导的内部作用域触发多次，每次 `squares` 在 locals 中不可见，产生多个 `WARNING: variable squares not found in locals` 噪音。
-- **根因**: 列表推导式创建了隐式函数作用域，`local_trace_func` 在该作用域内无法访问外层函数的 `squares` 变量，直到推导完成后才可见。
-- **修复方向**: 检测列表/集合/字典推导式的代码行，在推导式作用域内跳过变量捕获，直到推导完成后再捕获一次。
+- **状态**: 已修复 (#290dd6c)
+- **现象**: 列表推导式的结果变量使用 `@inspect` 时，local_trace_func 被推导的内部作用域触发多次，产生大量 `WARNING: variable squares not found in locals` 噪音。
+- **根因**: CPython 推导式运行在隐式函数作用域内（`<listcomp>`, `<dictcomp>` 等帧），`local_trace_func` 在此作用域内无法访问外层变量。
+- **修复**: 用显式 `frozenset` 检测 `<listcomp>`、`<setcomp>`、`<dictcomp>`、`<genexpr>` 帧名称并跳过；使用 `_seen_steps` 集合追踪首次 local_trace_func 调用抑制误报。
 
 ### B10. TraceViewer "No trace path provided"（已修复）
 - **文件**: `frontend/src/pages/EditorPage.jsx`, `frontend/src/TraceViewer.jsx`
@@ -178,10 +185,12 @@
 - 待补: publish PyPI
 - 预计: 1 天。
 
-### F13. CLI 模式
-- `walkabout run my_script.py` — 命令行直接执行 walkthrough 并输出 trace JSON（无需 GUI）。
-- `walkabout export my_script.py -o output.html` — 命令行导出静态 HTML。
-- 预计: 2 天。
+### F13. CLI 模式（已完成）
+- ✅ `walkabout run my_script.py [-o trace.json] [--inspect-all]` — 命令行直接执行 walkthrough 并输出 trace JSON。
+- ✅ `walkabout export my_script.py [-o output.html] [--strip-source] [--content-only]` — 命令行导出静态 HTML。
+- ✅ `walkabout export --from-trace trace.json -o output.html` — 从已有 trace 导出。
+- ✅ `walkabout serve [--no-gui]` — 保持原有 GUI 行为（默认）。
+- ✅ 提取 `runner.py:execute_note()` 为可复用的无头执行函数。
 
 ### F14. Walkthrough 模板市场
 - 社区共享 walkthrough 模板，一键克隆到本地工作空间。
