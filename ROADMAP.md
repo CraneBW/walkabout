@@ -148,9 +148,12 @@
 - ✅ 实现: `walkabout/export.py` + `POST /api/export` + 前端 ↓ Export 按钮
 - 预计: 3 天。
 
-### F5. 编辑器内联变量显示
-- 利用 Monaco Decorations API，在编辑器行尾显示当前步骤的变量值（类似 VS Code Debugger inline values）。
-- 预计: 5 天。
+### F5. 编辑器内联变量显示（已完成）
+- ✅ 利用 Monaco Decorations API (`after.content`) 在编辑器行尾显示当前步骤变量值。
+- ✅ `utils.js:computeEnv()` / `computeDecorations()` 从 trace env 计算装饰对象。
+- ✅ EditorPage 在 View 模式下自动获取 trace 数据并传递 decorations。
+- ✅ 新增 15 个 decorations 测试。
+- 影响文件: `frontend/src/utils.js`, `frontend/src/components/Editor.jsx`, `frontend/src/pages/EditorPage.jsx`, `frontend/src/index.css`
 
 ### F6. 自定义渲染器插件 API
 - 当前 Rendering 固定为 text/image/link。需开放注册: `@register_renderer("vega")`, `@register_renderer("mermaid")`。
@@ -182,8 +185,9 @@
 ### F12. CI/CD（已完成）
 - ✅ GitHub Actions Release 工作流: tag push → PyInstaller build → 上传 Linux/Windows 包
 - ✅ `.github/workflows/ci.yml`: push/PR 触发 lint (ruff + eslint) + test (pytest + vitest)
-- 待补: publish PyPI
-- 预计: 1 天。
+- ✅ `.github/workflows/publish.yml`: tag push 触发 PyPI 发布（Trusted Publishing）
+- ✅ pyproject.toml 完整 PyPI 元数据（classifiers, urls, license, readme）
+- ✅ MANIFEST.in 确保 frontend/dist 包含在分发包中
 
 ### F13. CLI 模式（已完成）
 - ✅ `walkabout run my_script.py [-o trace.json] [--inspect-all]` — 命令行直接执行 walkthrough 并输出 trace JSON。
