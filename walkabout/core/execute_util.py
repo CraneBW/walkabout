@@ -117,6 +117,83 @@ def link(arg: type | Reference | str | None = None, style: dict | None = None, *
 
 ############################################################
 
+# ── RendererRegistry ──────────────────────────────────────
+
+
+class RendererRegistry:
+    """Registry for custom renderer types provided by plugins."""
+
+    def __init__(self):
+        self._registry: dict[str, callable] = {}
+
+    def register(self, type_name: str, render_fn: callable):
+        """Register a renderer function for *type_name*.
+
+        Raises ValueError if *type_name* is already registered.
+        """
+        if type_name in self._registry:
+            raise ValueError(f"Renderer '{type_name}' already registered")
+        self._registry[type_name] = render_fn
+
+    def get(self, type_name: str) -> callable | None:
+        """Return the renderer function for *type_name*, or None."""
+        return self._registry.get(type_name)
+
+    def has(self, type_name: str) -> bool:
+        """Return True if *type_name* is registered."""
+        return type_name in self._registry
+
+    def list(self) -> list[str]:
+        """Return a list of all registered type names."""
+        return list(self._registry.keys())
+
+    def all(self) -> dict[str, callable]:
+        """Return the full {type_name: function} dict."""
+        return dict(self._registry)
+
+
+# ── Module-level registry singleton ───────────────────────
+
+_renderer_registry: RendererRegistry | None = None
+
+
+def get_renderer_registry() -> RendererRegistry:
+    """Return the module-level RendererRegistry singleton."""
+    global _renderer_registry
+    if _renderer_registry is None:
+        _renderer_registry = RendererRegistry()
+    return _renderer_registry
+
+
+def set_renderer_registry(registry: RendererRegistry | None):
+    """Set the module-level RendererRegistry (used by PluginManager)."""
+    global _renderer_registry
+    _renderer_registry = registry
+
+
+# ── custom_render() ───────────────────────────────────────
+
+
+def custom_render(type_name: str, data: str | None = None,
+                  style: dict | None = None,
+                  strict: bool = False):
+    """Create a custom rendering of *type_name*.
+
+    In strict mode, validates that *type_name* is registered in the
+    global registry.  Non-strict mode (default) always creates the
+    rendering, which allows subprocess execution without the registry.
+    """
+    if strict:
+        reg = get_renderer_registry()
+        if not reg.has(type_name):
+            raise ValueError(f"Custom renderer '{type_name}' not registered")
+    _current_renderings.append(
+        Rendering(type=type_name, data=data, style=style)
+    )
+
+
+############################################################
+
 # Accumulate the renderings during execution (gets flushed).
 _current_renderings: list[Rendering] = []
 

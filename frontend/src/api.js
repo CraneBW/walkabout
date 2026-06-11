@@ -54,3 +54,8 @@ export async function saveExport(path) {
   const res = await axios.post('/api/export/save', { path });
   return res.data;
 }
+
+export async function getRenderers() {
+  const res = await axios.get('/api/renderers');
+  return res.data;
+}

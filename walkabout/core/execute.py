@@ -108,7 +108,8 @@ def get_inspect_variables(code: str) -> list[str]:
     return variables
 
 
-def execute(module_name: str, inspect_all_variables: bool) -> Trace:
+def execute(module_name: str, inspect_all_variables: bool,
+            plugin_manager=None) -> Trace:
     """
     Execute the module and return a trace of the execution.
     """
@@ -269,6 +270,15 @@ def execute(module_name: str, inspect_all_variables: bool) -> Trace:
     # Run the module
     module = importlib.import_module(module_name)
     visible_paths.append(inspect.getfile(module))
+
+    # Plugin on_pre_execute hook
+    if plugin_manager is not None:
+        try:
+            module_source = inspect.getsource(module)
+            plugin_manager.on_pre_execute(module_name, module_source)
+        except Exception:
+            pass
+
     sys.settrace(trace_func)
     module.main()
     sys.settrace(None)
@@ -278,6 +288,16 @@ def execute(module_name: str, inspect_all_variables: bool) -> Trace:
         with open(path, encoding="utf-8") as f:
             files[relativize(path)] = f.read()
     trace = Trace(steps=steps, files=files)
+
+    # Plugin on_post_execute hook
+    if plugin_manager is not None:
+        try:
+            from dataclasses import asdict
+            trace_dict = asdict(trace)
+            plugin_manager.on_post_execute(module_name, trace_dict)
+        except Exception:
+            pass
+
     return trace
 
 if __name__ == "__main__":

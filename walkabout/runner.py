@@ -49,8 +49,12 @@ def main():
 
     # Execute with tracing
     from walkabout.core.execute import execute
+    from walkabout.plugins.manager import PluginManager
 
-    trace = execute(module_name=args.module, inspect_all_variables=False)
+    pm = PluginManager()
+    pm.discover()
+    trace = execute(module_name=args.module, inspect_all_variables=False,
+                    plugin_manager=pm)
 
     # Save trace
     os.makedirs(os.path.dirname(args.output), exist_ok=True)
@@ -116,9 +120,14 @@ def execute_note(script_path: str, output_path: str,
         sys.modules['file_util'] = _cfu
 
         from walkabout.core.execute import execute
+        from walkabout.plugins.manager import PluginManager
+
+        pm = PluginManager()
+        pm.discover()
 
         trace = execute(module_name=module_name,
-                        inspect_all_variables=inspect_all)
+                        inspect_all_variables=inspect_all,
+                        plugin_manager=pm)
 
         trace_dict = asdict(trace)
 

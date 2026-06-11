@@ -6,6 +6,7 @@ import 'highlight.js/styles/github.css';
 import DOMPurify from 'dompurify';
 import { getLast } from './utils';
 import { marked } from 'marked';
+import { getRenderers } from './api';
 
 function renderError(error) {
   return (
@@ -40,6 +41,12 @@ function TraceViewer() {
   const [envPosition, setEnvPosition] = useState({ rx: 20, y: 60 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ rx: 0, y: 0 });
+  const [customRenderers, setCustomRenderers] = useState(null);
+
+  // Fetch custom renderers from plugin registry
+  useEffect(() => {
+    getRenderers().then(setCustomRenderers).catch(() => setCustomRenderers({}));
+  }, []);
 
   // Fetch trace from backend
   useEffect(() => {
@@ -182,7 +189,7 @@ function TraceViewer() {
   }
 
   const renderedEnv = currentStepIndex !== null ? renderEnv({trace, currentStepIndex}) : null;
-  const renderedLines = renderLines({trace, currentPath, currentLineNumber, currentStepIndex, targetStepIndex, rawMode, animateMode, navigate});
+  const renderedLines = renderLines({trace, currentPath, currentLineNumber, currentStepIndex, targetStepIndex, rawMode, animateMode, navigate, customRenderers});
 
   return (
     <div
@@ -433,7 +440,7 @@ function makeProgressBar(currentStepIndex, totalSteps) {
   );
 }
 
-function renderLines({trace, currentPath, currentLineNumber, currentStepIndex, targetStepIndex, rawMode, animateMode, navigate}) {
+function renderLines({trace, currentPath, currentLineNumber, currentStepIndex, targetStepIndex, rawMode, animateMode, navigate, customRenderers}) {
   const linesToShow = computeLinesToShow({trace, currentStepIndex});
 
   // Build a map of line number to renderings
@@ -466,7 +473,7 @@ function renderLines({trace, currentPath, currentLineNumber, currentStepIndex, t
       // Add all renderings
       const renderedRenderings = renderings.map((rendering, index) => {
         return <span key={index}>
-          {renderRendering(rendering, navigate)}
+          {renderRendering(rendering, navigate, customRenderers)}
         </span>;
       });
       renderedItems.push(<div key="renderings" className="renderings">{renderedRenderings}</div>);
@@ -685,29 +692,53 @@ function renderAuthors(authors) {
   }
 }
 
-function renderRendering(rendering, navigate) {
-  if (rendering.type === "markdown") {
-    return <MarkdownRenderer content={rendering.data.toString()} style={rendering.style} />;
-  } else if (rendering.type === "image") {
-    return <img src={rendering.data} style={rendering.style} />;
-  } else if (rendering.type === "link") {
-    if (rendering.internal_link) {
-      // Create a link to a particular path, line number
-      // TODO: center when we jump to the link
-      const link = rendering.internal_link;
-      const anchorText = rendering.data || link.path + ":" + link.line_number;
-      return (<a href="#" style={rendering.style}
-                 onClick={() => updateUrlParams({ source: link.path, line: link.line_number, step: null }, navigate)}
-              >
-        {anchorText}
-      </a>);
-    } else if (rendering.external_link) {
-      const link = rendering.external_link;
-      return <ExternalLink link={link} style={rendering.style} />;
+/**
+ * Built-in renderer registry — maps type names to renderer components.
+ * Custom renderers from plugins are merged on top at call time.
+ */
+const BUILT_IN_RENDERERS = {
+  markdown: (r) => (
+    <MarkdownRenderer content={(r.data || '').toString()} style={r.style} />
+  ),
+  image: (r) => (
+    <img src={r.data} style={r.style} alt="" />
+  ),
+  link: (r, navigate) => {
+    if (r.internal_link) {
+      const link = r.internal_link;
+      const anchorText = r.data || link.path + ":" + link.line_number;
+      return (
+        <a href="#" style={r.style}
+           onClick={() => updateUrlParams({ source: link.path, line: link.line_number, step: null }, navigate)}>
+          {anchorText}
+        </a>
+      );
+    } else if (r.external_link) {
+      return <ExternalLink link={r.external_link} style={r.style} />;
     }
-  } else {
-    return <span style={rendering.style}>{rendering.data}</span>;
+    return <span>{r.data || ''}</span>;
+  },
+};
+
+function renderRendering(rendering, navigate, customRenderers) {
+  const type = rendering.type || 'text';
+
+  // Built-in renderer?
+  if (BUILT_IN_RENDERERS[type]) {
+    return BUILT_IN_RENDERERS[type](rendering, navigate);
   }
+
+  // Custom renderer from plugin registry?
+  if (customRenderers && customRenderers[type]) {
+    return (
+      <div className="custom-renderer" data-type={type} style={rendering.style}>
+        {rendering.data}
+      </div>
+    );
+  }
+
+  // Fallback: display data as text
+  return <span style={rendering.style}>{rendering.data}</span>;
 }
 
 function updateUrlParams(params, navigate) {

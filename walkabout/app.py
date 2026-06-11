@@ -12,6 +12,7 @@ from .api.env import router as env_router
 from .api.execute import router as execute_router
 from .api.export import router as export_router
 from .api.notes import router as notes_router
+from .api.renderers import router as renderers_router
 from .config import TRACES_DIR, ensure_dirs
 from .plugins.manager import PluginManager
 
@@ -43,6 +44,7 @@ def create_app() -> FastAPI:
     app.include_router(env_router)
     app.include_router(config_router)
     app.include_router(export_router)
+    app.include_router(renderers_router)
 
     # Load plugins
     pm = PluginManager()

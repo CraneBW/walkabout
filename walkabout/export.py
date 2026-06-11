@@ -3,6 +3,8 @@
 The generated HTML bundles the trace data and a standalone viewer so
 the walkthrough can be shared and viewed without a Python backend.
 """
+from __future__ import annotations
+
 import json
 from pathlib import Path
 from typing import Any, Optional
@@ -42,6 +44,7 @@ def generate_html(
     title: str = "Walkthrough",
     strip_source: bool = False,
     content_only: bool = False,
+    custom_renderers: dict | None = None,
 ) -> str:
     """Generate a self-contained HTML file from a trace dict.
 
@@ -52,6 +55,11 @@ def generate_html(
     outputs (markdown, images, etc.) and no source code at all.  This
     is useful for sharing walkthroughs with a non-technical audience.
     Implies *strip_source*.
+
+    *custom_renderers* — optional dict of {type_name: {type, frontend_js}}
+    from the plugin renderer registry.  Each entry's ``frontend_js`` is
+    injected as a ``<script>`` tag, and ``window.customRenderers`` is
+    populated so the viewer can dispatch unknown rendering types.
     """
     if strip_source or content_only:
         trace = _clean_trace(trace)
@@ -70,6 +78,25 @@ def generate_html(
     file_style = "display:none" if not files else ""
     content_only_flag = "true" if content_only else "false"
 
+    # Build custom renderer JS snippet
+    custom_renderer_js = ""
+    if custom_renderers:
+        scripts = ""
+        renderer_map = {}
+        for type_name, info in custom_renderers.items():
+            js_url = info.get("frontend_js")
+            if js_url:
+                scripts += f'<script src="{_escape_html(js_url)}"></script>\n'
+            renderer_map[type_name] = info
+        custom_renderer_js = (
+            scripts
+            + "<script>\n"
+            + "window.customRenderers = "
+            + json.dumps(renderer_map, ensure_ascii=False)
+            + ";\n"
+            + "</script>"
+        )
+
     title_escaped = _escape_html(title)
     html = _TEMPLATE
     html = html.replace("__TITLE__", title_escaped)
@@ -78,6 +105,7 @@ def generate_html(
     html = html.replace("__FILE_SELECT_STYLE__", file_style)
     html = html.replace("__CONTENT_ONLY__", content_only_flag)
     html = html.replace("__ENV_PANEL_STYLE__", "display:none" if content_only else "")
+    html = html.replace("__CUSTOM_RENDERER_JS__", custom_renderer_js)
     return html
 
 
@@ -214,6 +242,7 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Sego
 <!-- Trace data embedded as JSON -->
 <script id="trace-data" type="application/json">__TRACE_JSON__</script>
 
+__CUSTOM_RENDERER_JS__
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
@@ -347,6 +376,11 @@ function renderRendering(r) {
                 '" data-line="' + il.line_number + '">' + escapeHtml(data) + '</a>';
         }
         return '<span>' + escapeHtml(data) + '</span>';
+    }
+    /* Custom renderers from plugin registry */
+    if (window.customRenderers && window.customRenderers[type]) {
+        return '<div class="custom-renderer" data-type="' + escapeHtml(type) +
+            '" style="' + styleStr + '">' + escapeHtml(data) + '</div>';
     }
     return '<span style="' + styleStr + '">' + escapeHtml(data) + '</span>';
 }
