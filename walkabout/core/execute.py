@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import importlib
-import inspect
+import importlib.util
 import json
 import sys
 import traceback
@@ -61,6 +62,45 @@ class Step:
 class Trace:
     files: dict[str, str]
     steps: list[Step]
+
+
+def _dict_to_trace(d: dict) -> Trace:
+    """Reconstruct a Trace from its ``asdict()`` representation.
+
+    Plugin ``on_post_execute`` hooks receive and return trace dicts, so we
+    need to convert back after a plugin modifies the trace.
+    """
+    from walkabout.core.execute_util import Rendering
+
+    steps: list[Step] = []
+    for s in d.get("steps", []):
+        stack = [
+            StackElement(
+                path=e["path"],
+                line_number=e["line_number"],
+                function_name=e["function_name"],
+                code=e["code"],
+            )
+            for e in s.get("stack", [])
+        ]
+        renderings = [
+            Rendering(
+                type=r.get("type", "text"),
+                data=r.get("data"),
+                style=r.get("style"),
+                external_link=r.get("external_link"),
+                internal_link=r.get("internal_link"),
+            )
+            for r in s.get("renderings", [])
+        ]
+        steps.append(Step(
+            stack=stack,
+            env=dict(s.get("env", {})),
+            renderings=renderings,
+            stdout=s.get("stdout"),
+            stderr=s.get("stderr"),
+        ))
+    return Trace(files=dict(d.get("files", {})), steps=steps)
 
 
 def to_primitive(value: Any) -> Any:
@@ -267,17 +307,31 @@ def execute(module_name: str, inspect_all_variables: bool,
         # Pass control to local_trace_func to update the environment
         return local_trace_func
 
-    # Run the module
-    module = importlib.import_module(module_name)
-    visible_paths.append(inspect.getfile(module))
+    # Resolve module file path and read source *before* importing, so
+    # on_pre_execute can modify the source before it executes.
+    spec = importlib.util.find_spec(module_name)
+    if spec is None or spec.origin is None:
+        raise ModuleNotFoundError(f"Cannot find module: {module_name}")
+    module_file = spec.origin
 
-    # Plugin on_pre_execute hook
+    with open(module_file, encoding="utf-8") as f:
+        module_source = f.read()
+
+    # Plugin on_pre_execute hook — plugins may return modified source code.
+    modified_source = None
     if plugin_manager is not None:
-        try:
-            module_source = inspect.getsource(module)
-            plugin_manager.on_pre_execute(module_name, module_source)
-        except Exception:
-            pass
+        with contextlib.suppress(Exception):
+            modified_source = plugin_manager.on_pre_execute(module_name, module_source)
+
+    if modified_source is not None:
+        # Source was modified by a plugin — execute the modified source
+        # directly in a new module namespace instead of importing.
+        module = importlib.import_module(module_name)
+        exec(compile(modified_source, module_file, "exec"), module.__dict__)
+    else:
+        module = importlib.import_module(module_name)
+
+    visible_paths.append(module_file)
 
     sys.settrace(trace_func)
     module.main()
@@ -289,12 +343,13 @@ def execute(module_name: str, inspect_all_variables: bool,
             files[relativize(path)] = f.read()
     trace = Trace(steps=steps, files=files)
 
-    # Plugin on_post_execute hook
+    # Plugin on_post_execute hook — plugins may return a modified trace.
     if plugin_manager is not None:
         try:
-            from dataclasses import asdict
             trace_dict = asdict(trace)
-            plugin_manager.on_post_execute(module_name, trace_dict)
+            modified_trace = plugin_manager.on_post_execute(module_name, trace_dict)
+            if modified_trace is not None:
+                trace = _dict_to_trace(modified_trace)
         except Exception:
             pass
 

@@ -319,8 +319,122 @@ def main():
             os.chdir(old_cwd)
             sys.path[:] = old_path
 
+    def test_on_pre_execute_modifies_source(self, temp_home):
+        """on_pre_execute return value (modified source) should be used during execution."""
+        import os
+        from pathlib import Path
+        from walkabout.core.execute import execute
+        from walkabout.plugins.base import WalkaboutPlugin
+        from walkabout.plugins.manager import PluginManager
 
-class TestRendererInExport:
+        class InjectPlugin(WalkaboutPlugin):
+            name = "inject_plugin"
+
+            def on_pre_execute(self, module_name, code):
+                # Replace the value assigned to y inside main()
+                return code.replace("y = 99", "y = 77")
+
+        plugin = InjectPlugin()
+        pm = PluginManager()
+        pm.plugins = [plugin]
+
+        note = temp_home / "notes" / "inject_test.py"
+        note.write_text(
+            '''"""Test source injection."""
+from execute_util import text
+
+def main():
+    y = 99  # @inspect y
+''',
+            encoding="utf-8",
+        )
+
+        old_cwd = os.getcwd()
+        old_path = sys.path.copy()
+        core_dir = str(Path(__file__).parent.parent / "walkabout" / "core")
+        try:
+            os.chdir(str(temp_home / "notes"))
+            if str(temp_home / "notes") not in sys.path:
+                sys.path.insert(0, str(temp_home / "notes"))
+            if core_dir not in sys.path:
+                sys.path.insert(0, core_dir)
+
+            trace = execute(
+                module_name="inject_test",
+                inspect_all_variables=False,
+                plugin_manager=pm,
+            )
+
+            y_values = []
+            for step in trace.steps:
+                if "y" in step.env and step.env["y"] is not None:
+                    y_values.append(step.env["y"])
+            assert 77 in y_values, (
+                f"Source injection should change y from 99 to 77. "
+                f"Got y values: {y_values}"
+            )
+        finally:
+            os.chdir(old_cwd)
+            sys.path[:] = old_path
+
+    def test_on_post_execute_modifies_trace(self, temp_home):
+        """on_post_execute return value (modified trace) should replace the returned trace."""
+        import os
+        from pathlib import Path
+        from walkabout.core.execute import execute
+        from walkabout.plugins.base import WalkaboutPlugin
+        from walkabout.plugins.manager import PluginManager
+
+        class ModifyEnvPlugin(WalkaboutPlugin):
+            name = "modify_env_plugin"
+
+            def on_post_execute(self, module_name, trace_dict):
+                # Modify the env value of the second step
+                if len(trace_dict.get("steps", [])) > 1:
+                    trace_dict["steps"][1]["env"]["z"] = 99
+                return trace_dict
+
+        plugin = ModifyEnvPlugin()
+        pm = PluginManager()
+        pm.plugins = [plugin]
+
+        note = temp_home / "notes" / "post_test.py"
+        note.write_text(
+            '''"""Test post-execute."""
+def main():
+    z = 1  # @inspect z
+''',
+            encoding="utf-8",
+        )
+
+        old_cwd = os.getcwd()
+        old_path = sys.path.copy()
+        core_dir = str(Path(__file__).parent.parent / "walkabout" / "core")
+        try:
+            os.chdir(str(temp_home / "notes"))
+            if str(temp_home / "notes") not in sys.path:
+                sys.path.insert(0, str(temp_home / "notes"))
+            if core_dir not in sys.path:
+                sys.path.insert(0, core_dir)
+
+            trace = execute(
+                module_name="post_test",
+                inspect_all_variables=False,
+                plugin_manager=pm,
+            )
+
+            # Check that on_post_execute modification took effect
+            z_values = []
+            for step in trace.steps:
+                if "z" in step.env:
+                    z_values.append(step.env["z"])
+            assert 99 in z_values, (
+                f"on_post_execute should have changed z from 1 to 99. "
+                f"Got z values: {z_values}"
+            )
+        finally:
+            os.chdir(old_cwd)
+            sys.path[:] = old_path
     """Tests for custom renderer support in export."""
 
     def test_generate_html_custom_renderers(self):
