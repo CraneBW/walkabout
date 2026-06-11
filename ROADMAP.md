@@ -1,6 +1,6 @@
 # Walkabout 基线任务文档
 
-> 版本: 0.2.0 | 更新: 2026-06-05
+> 版本: 0.2.1 | 更新: 2026-06-10
 
 ## 已完成 (Completed)
 
@@ -28,6 +28,9 @@
 - [x] **CLI 模式** — `walkabout run/export/serve` 子命令，无需 GUI (F13)
 - [x] **列表推导 @inspect 修复** — 推导式帧中不再输出虚假 WARNING (B9)
 - [x] **--no-gui flag + WSL 改进** — WSL + X Server 时允许 GUI (B8)
+- [x] **多标签文件编辑** — Tab 栏、多文件切换、Ctrl+Tab/W 快捷键、Monaco 多模型管理 (F1)
+- [x] **自定义渲染器插件 API** — `@register_renderer` 装饰器、`custom_render()` 函数、`/api/renderers` 端点、前端渲染器注册表 (F6)
+- [x] **TraceViewer BrowserRouter 解耦** — 移除 `useNavigate()` 依赖，改用 `pushState` + `popstate` 事件 (B6)
 
 ---
 
@@ -66,10 +69,10 @@
 - **根因**: `theme.js` 中 `getCurrentTheme()` 在 `useState` 初始化器中调用 `localStorage.getItem()`，pywebview 的 WebKitGTK/JavaScriptCore 引擎在特定条件下该 API 抛出异常，未经捕获传播到 React 渲染周期导致整个应用崩溃。
 - **修复**: 给 `theme.js` 所有浏览器 API 调用（localStorage、matchMedia、setAttribute）加 try/catch 防御；替代 Google Fonts CDN（WebKitGTK 可能阻塞外部字体加载）为系统字体栈；`__main__.py` 用 TCP connect 轮询替代盲等 sleep；`app.py` 静态资源添加 `Cache-Control: no-cache` 防缓存。
 
-### B6. TraceViewer 构造函数中使用了 `BrowserRouter` 但已在上层路由中
+### B6. TraceViewer 构造函数中使用了 `BrowserRouter` 但已在上层路由中（已修复）
 - **文件**: `frontend/src/TraceViewer.jsx`（复制自 CS336 课件）
-- **现象**: TraceViewer 内部使用 `useNavigate()` 依赖上层 `BrowserRouter`。如果作为独立组件导出到其他项目，缺少 Router 包裹会崩溃。
-- **修复方向**: 将 URL 导航抽象为 props callback，移除对 react-router 的直接依赖。
+- **状态**: 已修复 (#588f110)
+- **修复**: 移除 `useNavigate()` 依赖，改用 `window.history.pushState()` + 手动 `PopStateEvent` dispatch。所有导航辅助函数（stepForward/stepBackward 等）导出为 named export 用于测试。TraceViewer 和 EditorPage 添加 `popstate` 监听器触发重渲染。
 
 ### B7. 设置变更后编辑器/查看器不会热更新（已修复）
 - **文件**: 前端 `EditorPage.jsx`, `Editor.jsx`, `SettingsPage.jsx`
@@ -129,10 +132,10 @@
 
 ## 未来工作 (Future Work)
 
-### F1. 多标签文件编辑
-- 当前只支持单选文件。需 tab-based 多文件编辑。
-- 前端重构 FileBrowser + Editor 状态为多实例，类似 VS Code 标签页。
-- 预计: 3 天。
+### F1. 多标签文件编辑（已完成）
+- ✅ 当前只支持单选文件。需 tab-based 多文件编辑。
+- ✅ 实现: TabBar 组件 + EditorPage 多 tab 状态重构（tabs[] 数组 + activeTabId）、Monaco ITextModel 管理、Ctrl+Tab/W 快捷键、sessionStorage 持久化。
+- ✅ 新增 16 个测试（TabBar 9 + EditorPage 7）。
 
 ### F2. 实时协作
 - WebSocket 实现多人同时编辑同一 walkthrough。
@@ -155,9 +158,12 @@
 - ✅ 新增 15 个 decorations 测试。
 - 影响文件: `frontend/src/utils.js`, `frontend/src/components/Editor.jsx`, `frontend/src/pages/EditorPage.jsx`, `frontend/src/index.css`
 
-### F6. 自定义渲染器插件 API
-- 当前 Rendering 固定为 text/image/link。需开放注册: `@register_renderer("vega")`, `@register_renderer("mermaid")`。
-- 预计: 1 周。
+### F6. 自定义渲染器插件 API（已完成）
+- ✅ 当前 Rendering 固定为 text/image/link。需开放注册: `@register_renderer("vega")`, `@register_renderer("mermaid")`。
+- ✅ 实现: `RendererRegistry` 类 + `custom_render()` 函数 + `@register_renderer` 装饰器 + `on_register_renderers()` 钩字。
+- ✅ `GET /api/renderers` 端点 + 前端 `BUILT_IN_RENDERERS` 注册表 + Export HTML `__CUSTOM_RENDERER_JS__` 占位符。
+- ✅ 修复 plugin hooks (`on_pre_execute`/`on_post_execute`) 接入执行管道。
+- ✅ 新增 43 个测试（backend 33 + frontend 10）。
 
 ### F7. IPython 内核集成
 - 替换子进程模式，用 jupyter_client 连接 IPython 内核。
