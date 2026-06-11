@@ -18,6 +18,9 @@ class PluginManager:
         """Load plugins from ~/.walkabout/plugins/ and collect renderers."""
         _config.ensure_dirs()
         self.plugins = []
+        # Reset registry so that repeated discover() calls do not
+        # raise duplicate-registration errors.
+        self.registry = RendererRegistry()
         for item in _config.PLUGINS_DIR.iterdir():
             if item.is_dir() and (item / "__init__.py").exists():
                 try:

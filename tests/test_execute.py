@@ -160,6 +160,101 @@ def main():
             os.chdir(old_cwd)
             sys.path[:] = old_path
 
+    def test_execute_with_plugin_manager_passed(self, temp_home):
+        """execute() returns a Trace when plugin_manager is provided (not None)."""
+        from walkabout.plugins.manager import PluginManager
+
+        pm = PluginManager()  # Empty manager, no plugins
+
+        note = temp_home / "notes" / "pm_exec_test.py"
+        note.write_text("""\"\"\"Test plugin manager pass.\"\"\"
+def main():
+    x = 10  # @inspect x
+""", encoding="utf-8")
+
+        core_dir = str(Path(__file__).parent.parent / "walkabout" / "core")
+        old_cwd = os.getcwd()
+        old_path = sys.path.copy()
+        try:
+            os.chdir(str(temp_home / "notes"))
+            if str(temp_home / "notes") not in sys.path:
+                sys.path.insert(0, str(temp_home / "notes"))
+            if core_dir not in sys.path:
+                sys.path.insert(0, core_dir)
+
+            trace = execute(
+                module_name="pm_exec_test",
+                inspect_all_variables=False,
+                plugin_manager=pm,
+            )
+
+            assert isinstance(trace, Trace), (
+                f"Expected Trace, got {type(trace).__name__}"
+            )
+            assert len(trace.steps) > 0, "Should have at least 1 step"
+        finally:
+            os.chdir(old_cwd)
+            sys.path[:] = old_path
+
+    def test_plugin_manager_available_to_on_post_execute(self, temp_home):
+        """on_post_execute receives a trace dict with expected keys ('steps', 'files')."""
+        from walkabout.plugins.base import WalkaboutPlugin
+        from walkabout.plugins.manager import PluginManager
+
+        class CapturePlugin(WalkaboutPlugin):
+            name = "capture"
+
+            def on_post_execute(self, module_name, trace):
+                self.captured_trace_keys = list(trace.keys())
+                self.captured_steps_type = type(trace.get("steps")).__name__
+                self.captured_files_type = type(trace.get("files")).__name__
+                return trace
+
+        plugin = CapturePlugin()
+        pm = PluginManager()
+        pm.plugins = [plugin]
+
+        note = temp_home / "notes" / "capture_test.py"
+        note.write_text("""\"\"\"Test capture.\"\"\"
+def main():
+    y = 20  # @inspect y
+""", encoding="utf-8")
+
+        core_dir = str(Path(__file__).parent.parent / "walkabout" / "core")
+        old_cwd = os.getcwd()
+        old_path = sys.path.copy()
+        try:
+            os.chdir(str(temp_home / "notes"))
+            if str(temp_home / "notes") not in sys.path:
+                sys.path.insert(0, str(temp_home / "notes"))
+            if core_dir not in sys.path:
+                sys.path.insert(0, core_dir)
+
+            trace = execute(
+                module_name="capture_test",
+                inspect_all_variables=False,
+                plugin_manager=pm,
+            )
+
+            assert hasattr(plugin, "captured_trace_keys"), (
+                "on_post_execute should have been called"
+            )
+            assert "steps" in plugin.captured_trace_keys, (
+                f"trace should contain 'steps', got keys: {plugin.captured_trace_keys}"
+            )
+            assert "files" in plugin.captured_trace_keys, (
+                f"trace should contain 'files', got keys: {plugin.captured_trace_keys}"
+            )
+            assert plugin.captured_steps_type == "list", (
+                f"'steps' should be a list, got {plugin.captured_steps_type}"
+            )
+            assert plugin.captured_files_type == "dict", (
+                f"'files' should be a dict, got {plugin.captured_files_type}"
+            )
+        finally:
+            os.chdir(old_cwd)
+            sys.path[:] = old_path
+
     @pytest.mark.xfail(reason="text() renderings require execute_util imports in user module context")
     def test_execute_with_renderings(self, temp_home):
         """Verify renderings are captured from text() calls."""

@@ -177,6 +177,59 @@ class GlobalRegistryPlugin(WalkaboutPlugin):
         assert pm.plugins == []
 
 
+class TestPluginManagerEdgeCases:
+    """Edge-case tests for PluginManager behaviour."""
+
+    def test_plugin_manager_double_discover_is_safe(self, temp_home):
+        """Calling pm.discover() twice should not duplicate plugins or renderers."""
+        from walkabout.core.execute_util import get_renderer_registry
+
+        plugins_dir = temp_home / "plugins"
+        plugin_pkg = plugins_dir / "double_discover_plugin"
+        plugin_pkg.mkdir(parents=True, exist_ok=True)
+        (plugin_pkg / "__init__.py").write_text(
+            """
+from walkabout.plugins.base import WalkaboutPlugin, register_renderer
+
+class DoubleDiscoverPlugin(WalkaboutPlugin):
+    name = "double_discover"
+    version = "1.0.0"
+
+    @register_renderer("dd_chart")
+    def render_dd(self, rendering_data, style):
+        return {"type": "dd", "data": rendering_data}
+""",
+            encoding="utf-8",
+        )
+
+        pm = PluginManager()
+        pm.discover()
+        assert len(pm.plugins) == 1
+        assert pm.registry.has("dd_chart")
+
+        # Second discover must not raise and should not duplicate
+        pm.discover()
+        assert len(pm.plugins) == 1, "plugins should not be duplicated"
+        # Renderer must still be registered after second discover
+        assert pm.registry.has("dd_chart"), "renderer should still be present"
+        # The global registry singleton must also reflect the current state
+        global_reg = get_renderer_registry()
+        assert global_reg.has("dd_chart"), "global registry should have the renderer"
+
+    def test_on_pre_execute_with_no_plugins_returns_original(self):
+        """PluginManager.on_pre_execute with empty plugins returns original code."""
+        pm = PluginManager()
+        result = pm.on_pre_execute("test_mod", "original code")
+        assert result == "original code"
+
+    def test_on_post_execute_with_no_plugins_returns_original(self):
+        """PluginManager.on_post_execute with empty plugins returns original trace."""
+        pm = PluginManager()
+        trace = {"steps": [], "files": {"test.py": "x = 1"}}
+        result = pm.on_post_execute("test_mod", trace)
+        assert result is trace  # Same object, unchanged
+
+
 class TestApiRenderersEndpoint:
     """Tests for the GET /api/renderers endpoint."""
 

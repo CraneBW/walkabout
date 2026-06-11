@@ -107,6 +107,34 @@ class TestRendererRegistry:
         assert registry.has("anything") is False
         assert registry.get("anything") is None
 
+    def test_register_multiple_types(self):
+        """Register 3 different types and verify all are retrievable."""
+        registry = RendererRegistry()
+
+        def fn_a(data, style):
+            return f"a: {data}"
+
+        def fn_b(data, style):
+            return f"b: {data}"
+
+        def fn_c(data, style):
+            return f"c: {data}"
+
+        registry.register("type_a", fn_a)
+        registry.register("type_b", fn_b)
+        registry.register("type_c", fn_c)
+
+        assert registry.get("type_a") is fn_a
+        assert registry.get("type_b") is fn_b
+        assert registry.get("type_c") is fn_c
+        assert sorted(registry.list()) == ["type_a", "type_b", "type_c"]
+        assert len(registry.all()) == 3
+
+    def test_get_unknown_type_returns_none(self):
+        """get() for a nonexistent type returns None."""
+        registry = RendererRegistry()
+        assert registry.get("nonexistent") is None
+
 
 class TestCustomRender:
     """Unit tests for the custom_render() function."""
@@ -164,6 +192,27 @@ class TestCustomRender:
         assert renderings[1].data == "hello"
         assert renderings[2].type == "type_b"
 
+    def test_custom_render_with_all_parameters(self):
+        """custom_render() accepts type, data, style, and strict=False."""
+        custom_render("some_type", data="hello", style={"color": "red"}, strict=False)
+        renderings = pop_renderings()
+        assert len(renderings) == 1
+        assert renderings[0].type == "some_type"
+        assert renderings[0].data == "hello"
+        assert renderings[0].style == {"color": "red"}
+
+    def test_custom_render_appends_to_current_renderings(self):
+        """After custom_render(), pop_renderings() should include the new Rendering."""
+        # Clear any accumulated renderings first
+        initial = pop_renderings()
+        assert len(initial) == 0
+
+        custom_render("chart", data="viz-data")
+        renderings = pop_renderings()
+        assert len(renderings) == 1
+        assert renderings[0].type == "chart"
+        assert renderings[0].data == "viz-data"
+
 
 class TestRegistrySingleton:
     """Tests for the module-level registry singleton."""
@@ -190,4 +239,25 @@ class TestRegistrySingleton:
         registry = RendererRegistry()
         set_renderer_registry(registry)
         assert get_renderer_registry() is registry
+        set_renderer_registry(None)
+
+    def test_set_renderer_registry_replaces_singleton(self):
+        """set_renderer_registry() followed by get_renderer_registry() returns the new instance."""
+        from walkabout.core.execute_util import (
+            get_renderer_registry,
+            set_renderer_registry,
+        )
+
+        registry1 = RendererRegistry()
+        registry2 = RendererRegistry()
+
+        set_renderer_registry(registry1)
+        assert get_renderer_registry() is registry1
+
+        # Replace with a different registry
+        set_renderer_registry(registry2)
+        assert get_renderer_registry() is registry2
+        assert get_renderer_registry() is not registry1
+
+        # Clean up
         set_renderer_registry(None)
