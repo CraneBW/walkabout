@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import FileBrowser from '../components/FileBrowser';
 import Editor from '../components/Editor';
 import TabBar from '../components/TabBar';
@@ -12,7 +12,6 @@ import axios from 'axios';
 
 export default function EditorPage() {
   const navigate = useNavigate();
-  const location = useLocation();
 
   // ── Multi-tab state ────────────────────────────────────────
   const [tabs, setTabs] = useState([]);       // Tab[]
@@ -53,6 +52,8 @@ export default function EditorPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [currentTheme, setCurrentTheme] = useState(getCurrentTheme());
+  // URL version counter — incremented on popstate to trigger decoration re-computation
+  const [urlVersion, setUrlVersion] = useState(0);
   const [editorSettings, setEditorSettings] = useState({ fontSize: 14 });
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
@@ -123,11 +124,18 @@ export default function EditorPage() {
     return () => { cancelled = true; };
   }, [activeTab?.traceUrl, activeTabId]);
 
+  // Listen for popstate events (TraceViewer pushState + browser back/forward)
+  useEffect(() => {
+    const handler = () => setUrlVersion(v => v + 1);
+    window.addEventListener('popstate', handler);
+    return () => window.removeEventListener('popstate', handler);
+  }, []);
+
   // ── Inline decorations from trace step ──────────────────
   const decorations = useMemo(() => {
     if (activeTab?.tabMode !== 'view' || !activeTab?.traceData) return [];
 
-    const params = new URLSearchParams(location.search);
+    const params = new URLSearchParams(window.location.search);
     const stepIndex = parseInt(params.get('step'));
     const sourcePath = params.get('source') || activeTab.path;
 
@@ -136,7 +144,7 @@ export default function EditorPage() {
 
     const env = computeEnv(activeTab.traceData, stepIndex);
     return computeDecorations(env, activeTab.traceData.files[sourcePath]);
-  }, [activeTab?.tabMode, activeTab?.traceData, activeTab?.path, location.search]);
+  }, [activeTab?.tabMode, activeTab?.traceData, activeTab?.path, urlVersion]);
 
   // ── Fullscreen handler ─────────────────────────────────────
   useEffect(() => {
