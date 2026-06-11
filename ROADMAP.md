@@ -1,6 +1,6 @@
 # Walkabout 基线任务文档
 
-> 版本: 0.2.1 | 更新: 2026-06-10
+> 版本: 0.3.0 | 更新: 2026-06-10
 
 ## 已完成 (Completed)
 
@@ -24,13 +24,17 @@
 - [x] **GitHub Release 自动打包** — PyInstaller + GitHub Actions，tag push 自动构建 Linux/Windows 单文件包
 - [x] **in-process 执行** — PyInstaller 打包后在进程内直接执行 trace，无需子进程
 - [x] **CI lint + test 流水线** — push/PR 自动执行 ruff + pytest + eslint + vitest (F12)
-- [x] **全面测试套件** — Python 208 tests + 前端 42 tests = 250+ tests (F11)
+- [x] **全面测试套件** — Python 278 tests + 前端 111 tests = 389 tests (F11)
 - [x] **CLI 模式** — `walkabout run/export/serve` 子命令，无需 GUI (F13)
 - [x] **列表推导 @inspect 修复** — 推导式帧中不再输出虚假 WARNING (B9)
 - [x] **--no-gui flag + WSL 改进** — WSL + X Server 时允许 GUI (B8)
 - [x] **多标签文件编辑** — Tab 栏、多文件切换、Ctrl+Tab/W 快捷键、Monaco 多模型管理 (F1)
 - [x] **自定义渲染器插件 API** — `@register_renderer` 装饰器、`custom_render()` 函数、`/api/renderers` 端点、前端渲染器注册表 (F6)
 - [x] **TraceViewer BrowserRouter 解耦** — 移除 `useNavigate()` 依赖，改用 `pushState` + `popstate` 事件 (B6)
+- [x] **on_pre_execute 返回值管道修复** — 插件可通过 `on_pre_execute` 修改源代码，通过 `on_post_execute` 修改 trace 结果
+- [x] **_run_trace_inprocess 插件集成** — GUI/PyInstaller 执行路径现在正确发现插件并传递 PluginManager
+- [x] **Export custom_renderers 管道** — `export_note()` → `generate_html()` → `__CUSTOM_RENDERER_JS__` 端到端串联
+- [x] **测试扩展** — 新增 32 测试（16 backend + 16 frontend），总计 389 tests (278 pytest + 111 vitest)
 
 ---
 
@@ -183,10 +187,10 @@
 - 预计: 1 周。
 
 ### F11. 测试套件（已完成）
-- ✅ 后端 pytest (167 tests): config (30), execute (18), export (8), cross_platform (19), windows_compat (68), inprocess (24)
-- ✅ 前端 Vitest + jsdom (42 tests): theme (23), utils (9), api (10)
+- ✅ 后端 pytest (278 tests): config (30), execute (20), export (8), cross_platform (19), windows_compat (68), inprocess (24), renderer_registry (21), plugin_renderers (23), plugin_integration (6), main (17), cli (19), packaging (19)
+- ✅ 前端 Vitest + jsdom (111 tests): theme (23), utils (9), api (10), decorations (15), TabBar (9), EditorPage (12), TraceViewer (14), renderers (13)
 - 待补: E2E Playwright (编辑→执行→回放完整链路)
-- 共 209 个测试，167 passed, 2 skipped, 1 xfailed (py) + 42 passed (js)
+- 共 389 个测试，278 passed, 2 skipped, 1 xfailed (py) + 111 passed (js)
 
 ### F12. CI/CD（已完成）
 - ✅ GitHub Actions Release 工作流: tag push → PyInstaller build → 上传 Linux/Windows 包
@@ -238,6 +242,22 @@
 - `frontend/dist/` ~5MB JS + ~160KB CSS（含 Monaco 本地 bundle）被打包进 wheel。
 - 相比从 CDN 加载 ~30MB，本地 bundle 通过代码分割和 tree-shaking 缩减了体积。
 - 建议: 发布时可选是否含前端（`walkabout-core` vs `walkabout`），或首次启动时自动下载前端。
+
+### T7. `sys.modules` 别名重复 3 处
+- `api/__init__.py`、`runner.py` 的 `execute_note()` 和 `main()` 都手动设置 `sys.modules['execute_util']` 和 `sys.modules['file_util']`。
+- 建议: 提取为共享函数 `register_bare_import_aliases()`。
+
+### T8. 前端自定义渲染器组件注册表
+- 当前 TraceViewer 的自定义渲染器仅渲染 `<div>{rendering.data}</div>`，不执行插件提供的前端 JS。
+- 建议: 实现动态组件注册表，让插件 JS 能真正初始化和渲染（如 Vega/Mermaid 图表库）。
+
+### T9. `isStrictAncestorOf` 实现过简
+- `frontend/src/TraceViewer.jsx` 只比较堆栈深度而非实际调用路径，可能产生误报。
+- 这是从 CS336 原始代码继承的已知限制 (T2)。
+
+### T10. 无 E2E Playwright 测试
+- 缺少 编辑 → 执行 → 回放 的完整链路 E2E 测试。
+- 建议: 添加 Playwright 测试覆盖核心用户流程。
 
 ---
 
