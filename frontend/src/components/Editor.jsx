@@ -69,7 +69,7 @@ export default function Editor({ content, onChange, settings, decorations, onMou
   function handleMount(editor, monaco) {
     editorRef.current = editor;
     monacoRef.current = monaco;
-    if (onMount) onMount(editor);
+    if (onMount) onMount(editor, monaco);
   }
 
   if (!Monaco) {

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import FileBrowser from '../components/FileBrowser';
 import Editor from '../components/Editor';
+import TabBar from '../components/TabBar';
 import TraceViewer from '../TraceViewer';
 import { listNotes, getNote, saveNote, createNote, deleteNote, executeNote, exportNote, saveExport } from '../api';
 import { getEnvInfo, installPackages } from '../api';
@@ -12,45 +13,69 @@ import axios from 'axios';
 export default function EditorPage() {
   const navigate = useNavigate();
   const location = useLocation();
+
+  // ── Multi-tab state ────────────────────────────────────────
+  const [tabs, setTabs] = useState([]);       // Tab[]
+  const [activeTabId, setActiveTabId] = useState(null);
+  const activeTab = useMemo(
+    () => tabs.find((t) => t.id === activeTabId) || null,
+    [tabs, activeTabId],
+  );
+
+  // Derived convenience values (mirror original single-file API)
+  const selectedPath = activeTab?.path || null;
+  const content = activeTab?.content || '';
+  const dirty = activeTab?.dirty || false;
+  const tabMode = activeTab?.tabMode || 'edit';
+  const traceUrl = activeTab?.traceUrl || null;
+
+  // ── Refs (tabs ref + Monaco model management) ────────────
+  const tabsRef = useRef([]);
+  useEffect(() => { tabsRef.current = tabs; }, [tabs]);
+
+  const editorRef = useRef(null);
+  const monacoRef = useRef(null);
+  const modelsRef = useRef({});       // tabId → ITextModel
+  const viewStatesRef = useRef({});   // tabId → IEditorViewState
+
+  // MRU activation order (most-recently-used first)
+  const tabOrderRef = useRef([]);
+
+  // ── Remaining state (unchanged from original) ──────────────
   const [files, setFiles] = useState([]);
-  const [selectedPath, setSelectedPath] = useState(null);
-  const [content, setContent] = useState('');
-  const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [execResult, setExecResult] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
-
-  // Embedded viewer tab
-  const [tab, setTab] = useState('edit'); // 'edit' | 'view'
-  const [traceUrl, setTraceUrl] = useState(null);
-  const [traceData, setTraceData] = useState(null);
-
-  // Zen mode (fullscreen + hide chrome)
   const [zenMode, setZenMode] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-
-  // Sidebar toggle (independent of zen mode)
   const [sidebarVisible, setSidebarVisible] = useState(true);
-
-  // Theme
   const [currentTheme, setCurrentTheme] = useState(getCurrentTheme());
-
-  // Editor settings (fontSize, etc.) — initialized from API and kept in sync via postMessage
   const [editorSettings, setEditorSettings] = useState({ fontSize: 14 });
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
+  const [showInstall, setShowInstall] = useState(false);
+  const [pkgInput, setPkgInput] = useState('');
+  const [installing, setInstalling] = useState(false);
 
+  // ── Toast helper ──────────────────────────────────────────
+  const showToast = (msg) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(msg);
+    toastTimer.current = setTimeout(() => setToast(null), 3000);
+  };
+
+  // ── Editor settings from API ──────────────────────────────
   useEffect(() => {
-    axios.get('/api/config').then(r => {
+    axios.get('/api/config').then((r) => {
       const fontSize = r.data?.editor?.fontSize;
-      if (fontSize) {
-        setEditorSettings({ fontSize });
-      }
+      if (fontSize) setEditorSettings({ fontSize });
     }).catch(() => {});
   }, []);
 
-  // Listen for settings changes broadcast from SettingsPage
+  // ── Listen for settings changes ───────────────────────────
   useEffect(() => {
     const handler = (e) => {
       if (e.data?.type === 'settings-changed' && e.data?.key?.startsWith('editor.')) {
@@ -64,72 +89,56 @@ export default function EditorPage() {
     return () => window.removeEventListener('message', handler);
   }, []);
 
-  // Toast notifications
-  const [toast, setToast] = useState(null);
-
-  const toastTimer = useRef(null);
-  const showToast = (msg) => {
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    setToast(msg);
-    toastTimer.current = setTimeout(() => setToast(null), 3000);
-  };
-
-  // Initialize theme from settings
+  // ── Theme initialization ──────────────────────────────────
   useEffect(() => {
-    axios.get('/api/config').then(r => {
+    axios.get('/api/config').then((r) => {
       const theme = r.data?.appearance?.theme;
-      if (theme) {
-        initTheme(theme);
-        setCurrentTheme(theme);
-      } else {
-        initTheme();
-      }
+      if (theme) { initTheme(theme); setCurrentTheme(theme); }
+      else { initTheme(); }
     }).catch(() => { initTheme(); });
   }, []);
 
-  // Fetch trace data when a trace URL is available
+  // ── Fetch trace data when a tab has a trace URL ───────────
   useEffect(() => {
-    if (!traceUrl) {
-      setTraceData(null);
-      return;
-    }
+    const tabId = activeTabId;
+    const url = activeTab?.traceUrl;
+    if (!url) return;
+
+    let cancelled = false;
     const fetchTrace = async () => {
       try {
-        const response = await axios.get(traceUrl);
-        setTraceData(response.data);
+        const response = await axios.get(url);
+        if (!cancelled) {
+          setTabs((prev) =>
+            prev.map((t) =>
+              t.id === tabId ? { ...t, traceData: response.data } : t,
+            ),
+          );
+        }
       } catch (e) {
-        console.error('Failed to fetch trace:', e);
+        if (!cancelled) console.error('Failed to fetch trace:', e);
       }
     };
     fetchTrace();
-  }, [traceUrl]);
+    return () => { cancelled = true; };
+  }, [activeTab?.traceUrl, activeTabId]);
 
-  // Compute inline decorations from the current trace step and source file.
-  // Triggers on every URL change (TraceViewer navigates between steps).
+  // ── Inline decorations from trace step ──────────────────
   const decorations = useMemo(() => {
-    if (tab !== 'view' || !traceData) return [];
+    if (activeTab?.tabMode !== 'view' || !activeTab?.traceData) return [];
 
     const params = new URLSearchParams(location.search);
     const stepIndex = parseInt(params.get('step'));
-    // Use ?source param if available, otherwise fall back to selectedPath
-    const sourcePath = params.get('source') || selectedPath;
+    const sourcePath = params.get('source') || activeTab.path;
 
     if (isNaN(stepIndex)) return [];
-    if (!sourcePath || !traceData.files || !traceData.files[sourcePath]) return [];
+    if (!sourcePath || !activeTab.traceData.files || !activeTab.traceData.files[sourcePath]) return [];
 
-    const env = computeEnv(traceData, stepIndex);
-    return computeDecorations(env, traceData.files[sourcePath]);
-  }, [tab, traceData, location.search, selectedPath]);
+    const env = computeEnv(activeTab.traceData, stepIndex);
+    return computeDecorations(env, activeTab.traceData.files[sourcePath]);
+  }, [activeTab?.tabMode, activeTab?.traceData, activeTab?.path, location.search]);
 
-  const handleToggleTheme = () => {
-    const next = toggleTheme();
-    setCurrentTheme(next);
-    // Persist to API so the setting survives page navigation.
-    // Without this, EditorPage re-mount (e.g. after visiting Settings)
-    // would fetch the stale API value and overwrite the toggle.
-    axios.post('/api/config/set', { key: 'appearance.theme', value: next }).catch(() => {});
-  };
-
+  // ── Fullscreen handler ─────────────────────────────────────
   useEffect(() => {
     const handler = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', handler);
@@ -137,94 +146,182 @@ export default function EditorPage() {
   }, []);
 
   const toggleFullscreen = () => {
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-    } else {
-      document.documentElement.requestFullscreen();
-    }
+    if (document.fullscreenElement) { document.exitFullscreen(); }
+    else { document.documentElement.requestFullscreen(); }
   };
 
   const toggleZen = () => {
     const next = !zenMode;
     setZenMode(next);
-    if (next && !document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-    } else if (!next && document.fullscreenElement) {
-      document.exitFullscreen();
-    }
+    if (next && !document.fullscreenElement) { document.documentElement.requestFullscreen(); }
+    else if (!next && document.fullscreenElement) { document.exitFullscreen(); }
   };
 
-  // ESC exits zen mode
+  // ── ESC exits zen mode ─────────────────────────────────────
   useEffect(() => {
     const handler = (e) => {
-      if (e.key === 'Escape' && zenMode) {
-        setZenMode(false);
-      }
+      if (e.key === 'Escape' && zenMode) setZenMode(false);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [zenMode]);
 
-  // Package install
-  const [showInstall, setShowInstall] = useState(false);
-  const [pkgInput, setPkgInput] = useState('');
-  const [installing, setInstalling] = useState(false);
-
+  // ── File list ──────────────────────────────────────────────
   const refreshFiles = useCallback(async () => {
-    try {
-      const data = await listNotes();
-      setFiles(data);
-    } catch (e) {
-      setError('Cannot connect to server');
-    }
+    try { const data = await listNotes(); setFiles(data); }
+    catch (e) { setError('Cannot connect to server'); }
   }, []);
 
   useEffect(() => { refreshFiles(); }, [refreshFiles]);
 
-  // Restore selected file from URL or sessionStorage on mount
+  // ── SessionStorage persistence ─────────────────────────────
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const fileParam = params.get('file');
-    if (fileParam) {
-      selectNote(fileParam);
+    if (tabs.length > 0 && activeTabId) {
+      const persisted = tabs.map((t) => ({
+        id: t.id,
+        path: t.path,
+        dirty: t.dirty,
+        tabMode: t.tabMode,
+      }));
+      sessionStorage.setItem('walkabout_tabs', JSON.stringify(persisted));
+      sessionStorage.setItem('walkabout_active_tab', activeTabId);
+      // Keep backward compatibility
+      sessionStorage.setItem('walkabout_last_file', activeTabId);
     } else {
+      sessionStorage.removeItem('walkabout_tabs');
+      sessionStorage.removeItem('walkabout_active_tab');
+    }
+  }, [tabs, activeTabId]);
+
+  // ── Mount: restore from URL or sessionStorage ──────────────
+  useEffect(() => {
+    (async () => {
+      const params = new URLSearchParams(window.location.search);
+      const fileParam = params.get('file');
+
+      if (fileParam) {
+        await selectNote(fileParam);
+        return;
+      }
+
+      // Try restoring full tab state from sessionStorage
+      const savedTabs = sessionStorage.getItem('walkabout_tabs');
+      if (savedTabs) {
+        try {
+          const parsed = JSON.parse(savedTabs);
+          const restored = await Promise.all(
+            parsed.map((t) =>
+              getNote(t.id).then((data) => ({
+                id: t.id,
+                path: t.path,
+                content: data.content,
+                dirty: false,           // Content re-fetched from API
+                tabMode: t.tabMode || 'edit',
+                traceUrl: data.trace_url || null,
+                traceData: null,
+              })),
+            ),
+          );
+          const savedActive = sessionStorage.getItem('walkabout_active_tab');
+          const validActive = savedActive && restored.some((t) => t.id === savedActive);
+          setTabs(restored);
+          setActiveTabId(validActive ? savedActive : restored[0]?.id || null);
+        } catch (e) {
+          // Invalid JSON — ignore and fall through
+        }
+        return;
+      }
+
+      // Backward compatibility: single-file restore
       const lastFile = sessionStorage.getItem('walkabout_last_file');
       if (lastFile) {
-        selectNote(lastFile);
+        await selectNote(lastFile);
       }
-    }
+    })();
   }, []);
 
+  // ── Tab management: selectNote ─────────────────────────────
   const selectNote = async (path) => {
     setLoading(true);
     setError(null);
     try {
       const data = await getNote(path);
-      setSelectedPath(path);
-      setContent(data.content);
-      setDirty(false);
-      setExecResult(null);
-      if (data.trace_url) {
-        setTraceUrl(data.trace_url);
-      } else {
-        setTraceUrl(null);
+      const exists = tabsRef.current.some((t) => t.id === path);
+
+      if (!exists) {
+        setTabs((prev) => [
+          ...prev,
+          {
+            id: path,
+            path,
+            content: data.content,
+            dirty: false,
+            tabMode: 'edit',
+            traceUrl: data.trace_url || null,
+            traceData: null,
+          },
+        ]);
       }
+      setActiveTabId(path);
       navigate('?file=' + encodeURIComponent(path), { replace: true });
-      sessionStorage.setItem('walkabout_last_file', path);
-      setTab('edit');
     } catch (e) {
       setError('Failed to load: ' + path);
     }
     setLoading(false);
   };
 
+  // ── Tab management: handleTabClose ─────────────────────────
+  const handleTabClose = (tabId) => {
+    // Dispose Monaco model
+    const model = modelsRef.current[tabId];
+    if (model) {
+      model.dispose();
+      delete modelsRef.current[tabId];
+    }
+    delete viewStatesRef.current[tabId];
+
+    setTabs((prev) => prev.filter((t) => t.id !== tabId));
+
+    setActiveTabId((prev) => {
+      if (prev !== tabId) return prev; // Closing a non-active tab
+
+      // Find the MRU tab (most recently used before this one)
+      const order = tabOrderRef.current.filter((id) => id !== tabId);
+      return order.length > 0 ? order[0] : null;
+    });
+  };
+
+  // ── Track activation order for MRU ─────────────────────────
+  useEffect(() => {
+    if (activeTabId) {
+      tabOrderRef.current = [
+        activeTabId,
+        ...tabOrderRef.current.filter((id) => id !== activeTabId),
+      ];
+    }
+  }, [activeTabId]);
+
+  // ── Content change ─────────────────────────────────────────
+  const handleContentChange = (value) => {
+    setTabs((prev) =>
+      prev.map((t) =>
+        t.id === activeTabId ? { ...t, content: value, dirty: true } : t,
+      ),
+    );
+  };
+
+  // ── Save ───────────────────────────────────────────────────
   const handleSave = async () => {
-    if (!selectedPath) return;
+    if (!activeTabId) return;
     setSaving(true);
     setError(null);
     try {
-      await saveNote(selectedPath, content);
-      setDirty(false);
+      await saveNote(activeTabId, content);
+      setTabs((prev) =>
+        prev.map((t) =>
+          t.id === activeTabId ? { ...t, dirty: false } : t,
+        ),
+      );
       await refreshFiles();
     } catch (e) {
       setError('Save failed');
@@ -232,22 +329,32 @@ export default function EditorPage() {
     setSaving(false);
   };
 
+  // ── Run ────────────────────────────────────────────────────
   const handleRun = async () => {
-    if (!selectedPath) return;
+    if (!activeTabId) return;
     setExecuting(true);
     setError(null);
     setExecResult(null);
     try {
       if (dirty) {
-        await saveNote(selectedPath, content);
-        setDirty(false);
+        await saveNote(activeTabId, content);
+        setTabs((prev) =>
+          prev.map((t) =>
+            t.id === activeTabId ? { ...t, dirty: false } : t,
+          ),
+        );
       }
-      const result = await executeNote(selectedPath);
+      const result = await executeNote(activeTabId);
       setExecResult(result);
       if (result.status === 'ok') {
-        setTraceUrl(result.trace_url);
+        setTabs((prev) =>
+          prev.map((t) =>
+            t.id === activeTabId
+              ? { ...t, traceUrl: result.trace_url, tabMode: 'view' }
+              : t,
+          ),
+        );
         navigate('?trace=' + encodeURIComponent(result.trace_url));
-        setTab('view');  // Switch to embedded viewer
       }
     } catch (e) {
       setError('Execution failed');
@@ -255,22 +362,25 @@ export default function EditorPage() {
     setExecuting(false);
   };
 
+  // ── Export ─────────────────────────────────────────────────
   const handleExport = async () => {
-    if (!selectedPath) return;
+    if (!activeTabId) return;
     setExporting(true);
     setError(null);
     try {
       if (dirty) {
-        await saveNote(selectedPath, content);
-        setDirty(false);
+        await saveNote(activeTabId, content);
+        setTabs((prev) =>
+          prev.map((t) =>
+            t.id === activeTabId ? { ...t, dirty: false } : t,
+          ),
+        );
       }
-      // Run first to generate trace, then download standalone HTML
-      const result = await executeNote(selectedPath, content);
+      const result = await executeNote(activeTabId);
       if (result.status !== 'ok') {
         throw new Error(result.error || 'Execution failed');
       }
-      // Save to configured export directory on disk
-      const saveResult = await saveExport(selectedPath);
+      const saveResult = await saveExport(activeTabId);
       showToast('Exported → ' + saveResult.path);
     } catch (e) {
       setError('Export failed: ' + (e.message || e));
@@ -278,6 +388,7 @@ export default function EditorPage() {
     setExporting(false);
   };
 
+  // ── Install ────────────────────────────────────────────────
   const handleInstall = async () => {
     if (!pkgInput.trim()) return;
     setInstalling(true);
@@ -293,6 +404,7 @@ export default function EditorPage() {
     setShowInstall(false);
   };
 
+  // ── New file ───────────────────────────────────────────────
   const handleNew = async (name) => {
     try {
       const data = await createNote(name);
@@ -303,15 +415,14 @@ export default function EditorPage() {
     }
   };
 
+  // ── Delete ─────────────────────────────────────────────────
   const handleDelete = async (path) => {
     try {
       await deleteNote(path);
-      if (path === selectedPath) {
-        setSelectedPath(null);
-        setContent('');
-        setTab('edit');
-        setTraceUrl(null);
-        navigate('', { replace: true });
+      // Close the tab if the deleted file was open
+      const tabOpen = tabsRef.current.some((t) => t.id === path);
+      if (tabOpen) {
+        handleTabClose(path);
       }
       await refreshFiles();
     } catch (e) {
@@ -319,13 +430,119 @@ export default function EditorPage() {
     }
   };
 
+  // ── Theme toggle ───────────────────────────────────────────
+  const handleToggleTheme = () => {
+    const next = toggleTheme();
+    setCurrentTheme(next);
+    axios.post('/api/config/set', { key: 'appearance.theme', value: next }).catch(() => {});
+  };
+
+  // ── Exit zen ───────────────────────────────────────────────
   const exitZen = () => {
     setZenMode(false);
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
+    if (document.fullscreenElement) { document.exitFullscreen(); }
+  };
+
+  // ── Monaco model management ──────────────────────────────
+  const handleMount = (editor, monaco) => {
+    editorRef.current = editor;
+    monacoRef.current = monaco;
+
+    if (activeTabId && monaco) {
+      const existing = modelsRef.current[activeTabId];
+      if (existing) {
+        editor.setModel(existing);
+        const vs = viewStatesRef.current[activeTabId];
+        if (vs) editor.restoreViewState(vs);
+      } else {
+        // onMount fires before the active-tab-change effect, so
+        // the effect below will create the model and set it.
+      }
     }
   };
 
+  // Switch Monaco models when the active tab changes
+  useEffect(() => {
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+    if (!editor || !monaco) return;
+
+    // Save view state for current model
+    const currentModel = editor.getModel();
+    if (currentModel) {
+      for (const [id, model] of Object.entries(modelsRef.current)) {
+        if (model === currentModel) {
+          viewStatesRef.current[id] = editor.saveViewState();
+          break;
+        }
+      }
+    }
+
+    if (activeTabId) {
+      let model = modelsRef.current[activeTabId];
+      if (!model) {
+        const uriStr = 'file:///' + activeTabId.replace(/[^a-zA-Z0-9/_.-]/g, '_');
+        model = monaco.editor.createModel(activeTab?.content || '', 'python', monaco.Uri.parse(uriStr));
+        modelsRef.current[activeTabId] = model;
+
+        model.onDidChangeContent(() => {
+          const newContent = model.getValue();
+          setTabs((prev) =>
+            prev.map((t) =>
+              t.id === activeTabId ? { ...t, content: newContent, dirty: true } : t,
+            ),
+          );
+        });
+      }
+      editor.setModel(model);
+
+      const vs = viewStatesRef.current[activeTabId];
+      if (vs) editor.restoreViewState(vs);
+    }
+  }, [activeTabId]);
+
+  // ── Keyboard shortcuts ─────────────────────────────────────
+  useEffect(() => {
+    const handler = (e) => {
+      // Skip when input/textarea is focused
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if (e.ctrlKey && e.shiftKey && e.key === 'Tab') {
+        e.preventDefault();
+        if (tabs.length < 2) return;
+        const idx = tabs.findIndex((t) => t.id === activeTabId);
+        const prev = tabs[(idx - 1 + tabs.length) % tabs.length];
+        setActiveTabId(prev.id);
+      } else if (e.ctrlKey && e.key === 'Tab') {
+        e.preventDefault();
+        if (tabs.length < 2) return;
+        const idx = tabs.findIndex((t) => t.id === activeTabId);
+        const next = tabs[(idx + 1) % tabs.length];
+        setActiveTabId(next.id);
+      } else if (e.ctrlKey && e.key === 'w') {
+        e.preventDefault();
+        if (activeTabId) handleTabClose(activeTabId);
+      } else if (e.ctrlKey && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+      } else if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault();
+        handleRun();
+      } else if (e.key === 'F11') {
+        e.preventDefault();
+        toggleZen();
+      } else if (e.ctrlKey && e.key === 'n') {
+        e.preventDefault();
+        const name = window.prompt('New file name:');
+        if (name) handleNew(name);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [tabs, activeTabId]);
+
+  // ── Render ─────────────────────────────────────────────────
   return (
     <div className={`editor-page${zenMode ? ' zen-mode' : ''}${!sidebarVisible ? ' sidebar-hidden' : ''}`}>
       <header className="toolbar">
@@ -333,15 +550,24 @@ export default function EditorPage() {
         <span className="toolbar-actions">
           {selectedPath && (
             <>
-              <span className="file-path">{selectedPath}</span>
-              <button onClick={() => setTab('edit')} className={tab === 'edit' ? 'tab-active' : ''}>
+              <button onClick={() => {
+                setTabs((prev) =>
+                  prev.map((t) =>
+                    t.id === activeTabId ? { ...t, tabMode: 'edit' } : t,
+                  ),
+                );
+              }} className={tabMode === 'edit' ? 'tab-active' : ''}>
                 ✏️ Edit
               </button>
               {traceUrl && (
                 <button onClick={() => {
+                  setTabs((prev) =>
+                    prev.map((t) =>
+                      t.id === activeTabId ? { ...t, tabMode: 'view' } : t,
+                    ),
+                  );
                   navigate('?trace=' + encodeURIComponent(traceUrl));
-                  setTab('view');
-                }} className={tab === 'view' ? 'tab-active' : ''}>
+                }} className={tabMode === 'view' ? 'tab-active' : ''}>
                   👁 View
                 </button>
               )}
@@ -397,6 +623,12 @@ export default function EditorPage() {
           onDelete={handleDelete}
         />
         <div className="editor-area">
+          <TabBar
+            tabs={tabs}
+            activeTabId={activeTabId}
+            onSelect={setActiveTabId}
+            onClose={handleTabClose}
+          />
           {error && <div className="error-banner">{error} <button onClick={() => setError(null)}>×</button></div>}
           {zenMode && (
             <button className="exit-zen-btn" onClick={exitZen} title="Exit zen mode (ESC)">
@@ -411,27 +643,29 @@ export default function EditorPage() {
           )}
           {loading ? (
             <div className="loading">Loading...</div>
-          ) : tab === 'view' && traceUrl ? (
+          ) : activeTab?.tabMode === 'view' && activeTab?.traceUrl ? (
             <div className="viewer-embed" style={{ display: 'flex', flexDirection: 'column' }}>
               <div style={{ flex: 1, overflow: 'auto' }}>
                 <TraceViewer />
               </div>
-              {selectedPath && traceData?.files?.[selectedPath] && (
+              {selectedPath && activeTab?.traceData?.files?.[selectedPath] && (
                 <div style={{ height: '35%', minHeight: 200, borderTop: '1px solid var(--border-glass)' }}>
                   <Editor
-                    content={traceData.files[selectedPath]}
+                    content={activeTab.traceData.files[selectedPath]}
                     onChange={() => {}}
                     settings={editorSettings}
                     decorations={decorations}
+                    onMount={handleMount}
                   />
                 </div>
               )}
             </div>
-          ) : selectedPath ? (
+          ) : activeTab ? (
             <Editor
               content={content}
-              onChange={(v) => { setContent(v); setDirty(true); }}
+              onChange={handleContentChange}
               settings={editorSettings}
+              onMount={handleMount}
             />
           ) : (
             <div className="welcome">
