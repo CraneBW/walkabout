@@ -180,6 +180,24 @@ def run_command(script: str, output: str | None,
     return trace_dict
 
 
+def _get_custom_renderers() -> dict | None:
+    """Discover plugins and return custom-renderer info for export."""
+    from walkabout.plugins.manager import PluginManager
+    pm = PluginManager()
+    pm.discover()
+    if not pm.registry:
+        return None
+    result = {}
+    for type_name in pm.registry.list():
+        frontend_js = None
+        for p in pm.plugins:
+            for comp in p.get_frontend_components():
+                if comp.get("type") == type_name:
+                    frontend_js = comp.get("js", "")
+        result[type_name] = {"type": type_name, "frontend_js": frontend_js}
+    return result if result else None
+
+
 def export_command(
     script: str | None,
     from_trace: str | None,
@@ -197,6 +215,8 @@ def export_command(
     """
     from walkabout.export import export_note
 
+    custom_renderers = _get_custom_renderers()
+
     if from_trace:
         trace_path = os.path.abspath(from_trace)
         if not os.path.exists(trace_path):
@@ -206,7 +226,8 @@ def export_command(
         return export_note(Path(trace_path), Path(out),
                           title=None,
                           strip_source=strip_source,
-                          content_only=content_only)
+                          content_only=content_only,
+                          custom_renderers=custom_renderers)
 
     if script:
         script_path = os.path.abspath(script)
@@ -230,7 +251,8 @@ def export_command(
             result = export_note(Path(temp_trace), Path(out),
                                  title=None,
                                  strip_source=strip_source,
-                                 content_only=content_only)
+                                 content_only=content_only,
+                                 custom_renderers=custom_renderers)
         finally:
             if os.path.exists(temp_trace):
                 os.unlink(temp_trace)

@@ -2,13 +2,29 @@
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from ..config import NOTES_DIR, TRACES_DIR, ensure_dirs, load_settings
 from ..export import export_note
 from . import _run_trace_subprocess
+
+
+def _get_custom_renderers(request: Request) -> Optional[dict]:
+    """Extract custom renderer info from the plugin manager for export."""
+    pm = getattr(request.app.state, "plugin_manager", None)
+    if pm is None or not pm.registry:
+        return None
+    result = {}
+    for type_name in pm.registry.list():
+        frontend_js = None
+        for p in pm.plugins:
+            for comp in p.get_frontend_components():
+                if comp.get("type") == type_name:
+                    frontend_js = comp.get("js", "")
+        result[type_name] = {"type": type_name, "frontend_js": frontend_js}
+    return result if result else None
 
 
 def _resolve(relpath: str):
@@ -34,7 +50,8 @@ class ExportRequest(BaseModel):
 
 
 @router.get("")
-def export_note_get(path: str, title: Optional[str] = None) -> FileResponse:
+def export_note_get(path: str, request: Request,
+                    title: Optional[str] = None) -> FileResponse:
     """Generate and download standalone HTML from an existing trace (GET version)."""
     ensure_dirs()
 
@@ -47,7 +64,8 @@ def export_note_get(path: str, title: Optional[str] = None) -> FileResponse:
     html_path = TRACES_DIR / html_name
 
     name = title or module_name
-    export_note(trace_path, html_path, title=name, strip_source=False)
+    export_note(trace_path, html_path, title=name, strip_source=False,
+                custom_renderers=_get_custom_renderers(request))
 
     return FileResponse(
         str(html_path),
@@ -58,7 +76,7 @@ def export_note_get(path: str, title: Optional[str] = None) -> FileResponse:
 
 
 @router.post("")
-def export_note_endpoint(req: ExportRequest) -> FileResponse:
+def export_note_endpoint(req: ExportRequest, request: Request) -> FileResponse:
     """Run a note and return a standalone HTML file as download."""
     ensure_dirs()
 
@@ -77,7 +95,8 @@ def export_note_endpoint(req: ExportRequest) -> FileResponse:
         trace_path = TRACES_DIR / f"{module_name}.json"
         _run_trace_subprocess(module_name, trace_path, cwd=NOTES_DIR)
         title = req.title or module_name
-        export_note(trace_path, html_path, title=title, strip_source=False)
+        export_note(trace_path, html_path, title=title, strip_source=False,
+                    custom_renderers=_get_custom_renderers(request))
     except RuntimeError as e:
         raise HTTPException(500, str(e)) from e
 
@@ -101,7 +120,7 @@ def preview_export(path: str) -> FileResponse:
 
 
 @router.post("/save")
-def export_and_save(req: ExportRequest) -> dict:
+def export_and_save(req: ExportRequest, request: Request) -> dict:
     """Generate standalone HTML and save to the configured export directory.
 
     Returns the absolute path to the saved file so the UI can show it.
@@ -129,7 +148,9 @@ def export_and_save(req: ExportRequest) -> dict:
         trace_path = TRACES_DIR / f"{module_name}.json"
         _run_trace_subprocess(module_name, trace_path, cwd=NOTES_DIR)
         title = req.title or module_name
-        export_note(trace_path, html_path, title=title, strip_source=True, content_only=req.content_only)
+        export_note(trace_path, html_path, title=title, strip_source=True,
+                    content_only=req.content_only,
+                    custom_renderers=_get_custom_renderers(request))
     except RuntimeError as e:
         raise HTTPException(500, str(e)) from e
 

@@ -115,8 +115,14 @@ def export_note(
     title: Optional[str] = None,
     strip_source: bool = False,
     content_only: bool = False,
+    custom_renderers: dict | None = None,
 ) -> Path:
     """Read a trace JSON file and write a standalone HTML file.
+
+    *custom_renderers* is a dict of ``{type_name: {type, frontend_js}}``
+    from the plugin renderer registry.  When provided, custom renderer JS
+    is injected into the standalone HTML so custom rendering types work
+    in the exported viewer.
 
     Returns the path to the generated HTML file.
     """
@@ -128,6 +134,7 @@ def export_note(
         trace, title=name,
         strip_source=strip_source,
         content_only=content_only,
+        custom_renderers=custom_renderers,
     )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
