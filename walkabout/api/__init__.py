@@ -125,8 +125,17 @@ def _run_trace_inprocess(module_name: str, trace_path: Path, cwd: Path) -> None:
         _spec.loader.exec_module(_mod)
 
         from ..core.execute import execute
+        from ..plugins.manager import PluginManager
 
-        trace = execute(module_name=module_name, inspect_all_variables=False)
+        # Discover plugins and pass to execute() so plugin hooks
+        # (on_pre_execute, on_post_execute) and custom renderers work
+        # in the in-process path (PyInstaller / GUI mode).
+        pm = PluginManager()
+        pm.discover()
+
+        trace = execute(module_name=module_name,
+                        inspect_all_variables=False,
+                        plugin_manager=pm)
 
         trace_path.parent.mkdir(parents=True, exist_ok=True)
         with open(trace_path, "w", encoding="utf-8") as f:
