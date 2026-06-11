@@ -56,6 +56,10 @@ export async function saveExport(path) {
 }
 
 export async function getRenderers() {
-  const res = await axios.get('/api/renderers');
-  return res.data;
+  try {
+    const res = await axios.get('/api/renderers');
+    return res.data;
+  } catch {
+    return {};
+  }
 }

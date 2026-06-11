@@ -257,6 +257,13 @@ export default function EditorPage() {
       const exists = tabsRef.current.some((t) => t.id === path);
 
       if (!exists) {
+        // Track MRU: push currently active tab to front of the order
+        if (activeTabId) {
+          tabOrderRef.current = [
+            activeTabId,
+            ...tabOrderRef.current.filter((id) => id !== activeTabId),
+          ];
+        }
         setTabs((prev) => [
           ...prev,
           {
@@ -298,16 +305,6 @@ export default function EditorPage() {
       return order.length > 0 ? order[0] : null;
     });
   };
-
-  // ── Track activation order for MRU ─────────────────────────
-  useEffect(() => {
-    if (activeTabId) {
-      tabOrderRef.current = [
-        activeTabId,
-        ...tabOrderRef.current.filter((id) => id !== activeTabId),
-      ];
-    }
-  }, [activeTabId]);
 
   // ── Content change ─────────────────────────────────────────
   const handleContentChange = (value) => {

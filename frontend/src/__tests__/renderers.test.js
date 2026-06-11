@@ -27,6 +27,13 @@ describe('getRenderers API call', () => {
     const result = await getRenderers();
     expect(result).toEqual({});
   });
+
+  it('test_getRenderers_returns_empty_on_error', async () => {
+    axios.get.mockRejectedValueOnce(new Error('Network error'));
+
+    const result = await getRenderers();
+    expect(result).toEqual({});
+  });
 });
 
 describe('renderRendering with registry pattern', () => {
@@ -113,5 +120,30 @@ describe('renderRendering with registry pattern', () => {
   it('rendering with no data at all', () => {
     const result = renderRendering({ type: 'markdown' });
     expect(result.data).toBe('');
+  });
+
+  it('test_custom_renderer_overrides_fallback', () => {
+    const customRenderers = {
+      chart: { type: 'chart', frontend_js: '/chart.js' },
+    };
+    // Without custom renderer, chart falls back to text
+    expect(renderRendering({ type: 'chart', data: 'x' }).kind).toBe('text');
+    // With custom renderer, chart dispatches to custom handler
+    expect(
+      renderRendering({ type: 'chart', data: 'x' }, customRenderers).kind,
+    ).toBe('custom');
+  });
+
+  it('test_custom_renderer_receives_rendering_data', () => {
+    const customRenderers = {
+      vega: { type: 'vega', frontend_js: '/vega.js' },
+    };
+    const rendering = { type: 'vega', data: '{"x": 1}', style: { color: 'red' } };
+    const result = renderRendering(rendering, customRenderers);
+    expect(result.kind).toBe('custom');
+    expect(result.type).toBe('vega');
+    expect(result.data).toBe('{"x": 1}');
+    expect(result.style).toEqual({ color: 'red' });
+    expect(result.meta).toEqual({ type: 'vega', frontend_js: '/vega.js' });
   });
 });
